@@ -190,6 +190,8 @@ export async function deleteSelectedSeeds(opts: DeleteOpts = {}) {
   _seedDeleteBusy = true;
   const abort = new AbortController();
   _seedDeleteAbort = abort;
+  let doneDetail: { total: number; speciesCount: number } | null = null;
+  let errorMsg: string | null = null;
 
   try {
     await toastSimple("Seed deleter", `Deleting ${formatNum(total)} seeds across ${tasks.length} species...`, "info");
@@ -225,18 +227,16 @@ export async function deleteSelectedSeeds(opts: DeleteOpts = {}) {
 
     if (!opts.keepSelection) selectedMap.clear();
 
-    try {
-      window.dispatchEvent(new CustomEvent("qws:seeddeleter:done", { detail: { total, speciesCount: tasks.length } }));
-    } catch {}
-
     if (successfulDeletes > 0) {
       await toastSimple("Seed deleter", `Deleted ${formatNum(successfulDeletes)} seeds (${tasks.length} species).`, "success");
     } else {
       await toastSimple("Seed deleter", "No seeds were deleted (requests failed).", "info");
     }
+
+    doneDetail = { total, speciesCount: tasks.length };
   } catch (e: any) {
     const msg = e?.message || "Deletion failed.";
-    try { window.dispatchEvent(new CustomEvent("qws:seeddeleter:error", { detail: { message: msg } })); } catch {}
+    errorMsg = msg;
     await toastSimple("Seed deleter", msg, "error");
   } finally {
     _seedDeleteBusy = false;
@@ -244,6 +244,12 @@ export async function deleteSelectedSeeds(opts: DeleteOpts = {}) {
     _seedDeleteAbort = null;
     _seedDeletePauseResolver?.();
     _seedDeletePauseResolver = null;
+
+    if (errorMsg !== null) {
+      try { window.dispatchEvent(new CustomEvent("qws:seeddeleter:error", { detail: { message: errorMsg } })); } catch {}
+    } else if (doneDetail) {
+      try { window.dispatchEvent(new CustomEvent("qws:seeddeleter:done", { detail: doneDetail })); } catch {}
+    }
   }
 }
 
