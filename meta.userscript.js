@@ -1,5 +1,6 @@
 // ==UserScript==
 // @name         MG Seed Deleter
+// @author       Joshueke
 // @namespace    MC-SeedDeleterMod
 // @version      0.0.8
 // @description  Standalone bulk seed deleter for Magic Garden, extracted from Arie's Mod
