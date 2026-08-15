@@ -1,4 +1,3 @@
-// src/core/bridge.ts
 import { NativeWS, quinoaWS, setQWS, sockets, Workers } from "./state";
 
 export function postAllToWorkers(msg: any) {
@@ -22,13 +21,11 @@ export function getPageWS(): WebSocket {
 export function sendToGame(payloadObj: Record<string, any>) {
   const msg: any = { scopePath: ["Room", "Quinoa"], ...payloadObj };
 
-  // tente via page
   try {
     const ws = getPageWS();
     ws.send(JSON.stringify(msg));
     return true;
   } catch {
-    // sinon, broadcast aux workers
     postAllToWorkers({ __QWS_CMD: "send", payload: JSON.stringify(msg) });
     return true;
   }

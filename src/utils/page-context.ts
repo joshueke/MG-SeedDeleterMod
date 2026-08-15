@@ -1,5 +1,3 @@
-// src/utils/page-context.ts
-
 declare const unsafeWindow:
   | (Window & typeof globalThis & { [key: string]: any })
   | undefined;
@@ -10,16 +8,12 @@ const pageWin =
     ? unsafeWindow
     : sandboxWin;
 
-/** Reference to the actual page window (falls back to the current window). */
 export const pageWindow = pageWin;
 
-/** Whether the userscript is running in an isolated sandbox. */
 export const isIsolatedContext = pageWin !== sandboxWin;
 
-/** Provide the sandbox window in case something explicitly needs it. */
 export const sandboxWindow = sandboxWin;
 
-/** Mirror a global value onto both the page window and sandbox window. */
 export function shareGlobal(name: string, value: any) {
   try {
     (pageWin as any)[name] = value;
@@ -31,7 +25,6 @@ export function shareGlobal(name: string, value: any) {
   }
 }
 
-/** Read a global value from the page (preferring sandbox if available). */
 export function readSharedGlobal<T = any>(name: string): T | undefined {
   if (isIsolatedContext) {
     const sandboxValue = (sandboxWin as any)[name];

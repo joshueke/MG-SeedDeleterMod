@@ -1,16 +1,8 @@
-// src/services/seedDeleter.ts
-// Extracted from the full mod's src/services/misc.ts: only the seed-deleter
-// feature survives here (ghost mode, auto-reconnect, auto-store and the
-// decor-deleter twin feature were all removed).
 import { plantCatalog } from "../data";
 import { Atoms } from "../store/atoms";
 import { sendToGame } from "../core/sendToGame";
 import { fakeInventoryShow, isInventoryPanelOpen, waitInventoryPanelClosed, fakeInventoryHide } from "./fakeModal";
 import { toastSimple } from "../ui/toast";
-
-/* ========================================================================== */
-/*                                   TYPES                                    */
-/* ========================================================================== */
 
 export type SeedItem = {
   species: string;
@@ -20,26 +12,17 @@ export type SeedItem = {
 };
 export type InventoryShape = { items: any[]; favoritedItemIds?: string[] };
 
-// What the user picks in the overlay.
 type SeedSelection = { name: string; qty: number; maxQty: number };
 
-/* ========================================================================== */
-/*                                  GAME CALL                                 */
-/* ========================================================================== */
-
-/** The game's "Wish" action is what actually deletes/sacrifices an item. */
 async function wish(itemId: string) {
   try { sendToGame({ type: "Wish", itemId }); } catch {}
 }
-
-/* ------------------------------ helpers data ------------------------------ */
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 const NF_US = new Intl.NumberFormat("en-US");
 const formatNum = (n: number) => NF_US.format(Math.max(0, Math.floor(n || 0)));
 
-/** Maps display names (seed.name) to the species from the plant catalog. */
 function buildDisplayNameToSpeciesFromCatalog(): Map<string, string[]> {
   const map = new Map<string, string[]>();
   try {
@@ -87,7 +70,6 @@ function buildInventoryShapeFrom(items: SeedItem[]): InventoryShape {
   return { items, favoritedItemIds: [] };
 }
 
-/** Current stock per species, read straight from the real inventory. */
 async function buildSpeciesStockFromInventory(): Promise<Map<string, number>> {
   const inv = await getMySeedInventory();
   const stock = new Map<string, number>();
@@ -98,7 +80,6 @@ async function buildSpeciesStockFromInventory(): Promise<Map<string, number>> {
   return stock;
 }
 
-/** Spreads a requested "name/qty" across the matching species, capped to available stock. */
 function allocateForRequestedName(
   requested: { name: string; qty: number },
   nameToSpecies: Map<string, string[]>,
@@ -131,10 +112,6 @@ function allocateForRequestedName(
   return out;
 }
 
-/* ========================================================================== */
-/*                              DELETE PIPELINE                               */
-/* ========================================================================== */
-
 let _seedDeleteAbort: AbortController | null = null;
 let _seedDeleteBusy = false;
 let _seedDeletePaused = false;
@@ -143,9 +120,9 @@ let _seedDeletePauseResolver: (() => void) | null = null;
 export const DEFAULT_SEED_DELETE_DELAY_MS = 35;
 
 type DeleteOpts = {
-  selection?: { name: string; qty: number }[]; // otherwise read from selectedMap
-  delayMs?: number;                             // defaults to 35ms
-  keepSelection?: boolean;                      // false => clears selection when done
+  selection?: { name: string; qty: number }[];
+  delayMs?: number;
+  keepSelection?: boolean;
   onProgress?: (info: { done: number; total: number; species: string; remainingForSpecies: number }) => void;
 };
 
@@ -158,7 +135,6 @@ async function waitSeedPause() {
   }
 }
 
-/** Deletes the selected seeds by calling the game's Wish action once per unit. */
 export async function deleteSelectedSeeds(opts: DeleteOpts = {}) {
   if (_seedDeleteBusy) {
     await toastSimple("Seed deleter", "Deletion already in progress.", "info");
@@ -304,7 +280,6 @@ export function isSeedDeletionPaused() {
   return _seedDeletePaused;
 }
 
-/* Bridge: if the UI dispatches `qws:seeddeleter:apply` directly, trigger the deletion. */
 try {
   window.addEventListener("qws:seeddeleter:apply", async (e: any) => {
     try {
@@ -314,13 +289,9 @@ try {
   });
 } catch {}
 
-/* ========================================================================== */
-/*                            SELECTOR (overlay UI)                          */
-/* ========================================================================== */
-
-const selectedMap = new Map<string, SeedSelection>(); // key = display name (e.g. "Tulip Seed")
-let seedStockByName = new Map<string, number>();       // "Tulip Seed" -> available qty
-let seedSourceCache: SeedItem[] = [];                  // snapshot of seeds at launch
+const selectedMap = new Map<string, SeedSelection>();
+let seedStockByName = new Map<string, number>();
+let seedSourceCache: SeedItem[] = [];
 
 async function clearUiSelectionAtoms() {
   try { await Atoms.inventory.mySelectedItemName.set(null); } catch {}
@@ -409,7 +380,6 @@ export function createButton(label: string, styleOverride?: Partial<CSSStyleDecl
   return b;
 }
 
-// ------------ Block game keys while typing in overlay inputs ----------------
 let overlayKeyGuardsOn = false;
 function isInsideOverlay(el: Element | null) {
   return !!(el && (el as HTMLElement).closest?.(`#${OVERLAY_ID}`));
@@ -434,9 +404,7 @@ function removeOverlayKeyGuards() {
   window.removeEventListener("keydown", keyGuardCapture, { capture: true } as any);
   overlayKeyGuardsOn = false;
 }
-// ---------------------------------------------------------------------------
 
-/** Cleanly closes the fake inventory (disables the fakes + closes the modal). */
 async function closeSeedInventoryPanel() {
   try {
     await fakeInventoryHide();
@@ -668,9 +636,7 @@ async function repatchFakeSeedInventoryWithSelection() {
 
   try {
     await fakeInventoryShow({ items: patched, favoritedItemIds: [] }, { open: false });
-  } catch {
-    // panel closed in the meantime → ignore
-  }
+  } catch {}
 }
 
 let unsubSelectedName: null | (() => void | Promise<void>) = null;
@@ -685,7 +651,6 @@ async function beginSelectedNameListener() {
     const max = Math.max(1, seedStockByName.get(n) ?? 1);
     const existing = selectedMap.get(n);
     if (existing) {
-      // Re-clicking a selected item bumps it back to the full remaining stock
       existing.qty = max;
       existing.maxQty = max;
       selectedMap.set(n, existing);
@@ -709,11 +674,6 @@ async function endSelectedNameListener() {
   try { await fn?.(); } catch {}
 }
 
-/**
- * Hides the caller's UI via setWindowVisible(false), opens the (seeds-only)
- * fake inventory + the draggable selection overlay, listens for selections,
- * then restores everything on close.
- */
 export async function openSeedSelectorFlow(setWindowVisible?: (v: boolean) => void) {
   try {
     setWindowVisible?.(false);
@@ -744,10 +704,6 @@ export async function openSeedSelectorFlow(setWindowVisible?: (v: boolean) => vo
     setWindowVisible?.(true);
   }
 }
-
-/* ========================================================================== */
-/*                              SERVICE (single export)                       */
-/* ========================================================================== */
 
 export const SeedDeleterService = {
   getMySeedInventory,

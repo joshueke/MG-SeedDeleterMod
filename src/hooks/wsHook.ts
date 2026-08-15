@@ -1,14 +1,3 @@
-// src/hooks/wsHook.ts
-// Minimal socket-capture shim, trimmed from the full mod's hooks/ws-hook.ts.
-//
-// sendToGame() (src/core/sendToGame.ts) needs a live page WebSocket to write
-// the "Wish" command to. The game doesn't expose that socket anywhere else,
-// so this wraps the page's native WebSocket constructor to capture every
-// instance into `sockets`, and flags the one that looks like the game's own
-// connection (first to go OPEN, or the first to emit a Welcome/Config/state
-// message) via `setQWS`. Everything else the full mod's hook does
-// (auto-reconnect, version-expired auto-reload, command interceptors) is
-// unrelated to deleting seeds and is left out.
 import { NativeWS, sockets, setQWS } from "../core/state";
 import { pageWindow } from "../utils/page-context";
 import { parseWSData } from "../core/parse";
@@ -51,9 +40,6 @@ export function installPageWebSocketHook() {
     try { (window as any).WebSocket = WrappedWebSocket as any; } catch {}
   }
 
-  // Fallback: if no socket ever looked like the game's own connection (the
-  // page's own RoomConnection wrapper still holds a reference to it even
-  // when our heuristics above miss), grab it directly after a grace period.
   const FALLBACK_DELAY_MS = 5000;
   const win = pageWindow || (typeof window !== "undefined" ? window : null);
   if (win) {

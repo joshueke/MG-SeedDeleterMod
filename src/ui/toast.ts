@@ -1,13 +1,8 @@
-// src/ui/toast.ts
 import { getAtomByLabel, jGet, jSet } from "../store/jotai";
 
 export type ToastVariant = "success" | "error" | "info" | "warn";
 export type SimpleToast = { title: any; description?: any; variant?: ToastVariant };
 
-// Matches the real "board"-style toast pushed by the game itself for shop
-// announcements (captured live from quinoaToastsAtom). title/subtitle can be
-// either a plain string or a `{ id }` i18n message reference, mirroring what
-// the game sends.
 type ShopAnnouncementToast = {
   toastType: "shopAnnouncement";
   presentation: string;
@@ -35,10 +30,6 @@ export async function sendToast(toast: AnyToast): Promise<void> {
     ? { isClosable: true, presentByServerMs: Date.now(), ...toast }
     : { isClosable: true, duration: 10000, ...toast };
 
-  // Every toast needs a distinct id: the game's toast list keys/removes
-  // entries by id, so any two toasts sharing "quinoa-game-toast" become
-  // indistinguishable to it — closing one either closes both or fails to
-  // remove either, which is exactly the "won't dismiss" symptom this fixes.
   t.id = t.id ?? `quinoa-game-toast-${Date.now()}-${Math.random()}`;
 
   await jSet(listAtom, [...prev, t]);

@@ -1,4 +1,3 @@
-// src/core/parse.ts
 export async function parseWSData(d: any): Promise<any | null> {
   try {
     if (typeof d === "string") return JSON.parse(d);

@@ -1,7 +1,4 @@
-// src/store/hub.ts
 import { Store, Unsubscribe } from "./api";
-
-/* ================================== utils path ================================== */
 
 type Path = string | Array<string | number>;
 
@@ -56,8 +53,6 @@ const eq = {
   },
 };
 
-/* ============================== vue générique (path) ============================== */
-
 export type View<T> = {
   label: string;
   get(): Promise<T>;
@@ -65,14 +60,11 @@ export type View<T> = {
   update(fn: (prev: T) => T): Promise<T>;
   onChange(cb: (next: T, prev?: T) => void, isEqual?: (a: T, b: T) => boolean): Promise<Unsubscribe>;
   onChangeNow(cb: (next: T, prev?: T) => void, isEqual?: (a: T, b: T) => boolean): Promise<Unsubscribe>;
-  /** créer un canal de signatures sur cette vue */
   asSignature<K extends string | number = string>(opts: SignatureOpts<T, K>): SignatureChannel<T, K>;
 };
 
 type MakeViewOpts<TSrc, T> = {
-  /** chemin dans la source. ex: "child.data.shops.seed.inventory" */
   path?: Path;
-  /** writer: "replace" (par défaut) | "merge-shallow" | custom */
   write?: "replace" | "merge-shallow" | ((next: T, prevSrc: TSrc | undefined) => TSrc);
 };
 
@@ -89,8 +81,8 @@ export function makeView<TSrc = any, T = any>(
 
   async function set(next: T) {
     if (typeof write === "function") {
-        const prev = await Store.select<TSrc>(sourceLabel);  
-        const raw = write(next, prev);                         
+        const prev = await Store.select<TSrc>(sourceLabel);
+        const raw = write(next, prev);
         return Store.set(sourceLabel, raw);
     }
     const prev = await Store.select<any>(sourceLabel);
@@ -140,40 +132,22 @@ export function makeView<TSrc = any, T = any>(
   return { label: sourceLabel + (path ? ":" + toPathArray(path).join(".") : ""), get, set, update, onChange, onChangeNow, asSignature };
 }
 
-/* ========================== canal de signatures générique ========================== */
-
 export type SignatureOpts<TView, K extends string | number> = {
-  /**
-   * Comment collecter les entrées à signer :
-   * - "auto" (défaut) : si Array -> itère items; si Record -> Object.entries()
-   * - "array" | "record" : forcer le mode
-   */
   mode?: "auto" | "array" | "record";
-  /** Clé logique d’une entrée (sinon: index pour array, property name pour record) */
   key?: (item: any, indexOrKey: number | string, whole: TView) => K;
-  /**
-   * Signature d’une entrée. Si non fourni:
-   * - si fields est fourni → signature basée sur ces champs
-   * - sinon → JSON.stringify(item) (simple mais verbeux)
-   */
   sig?: (item: any, indexOrKey: number | string, whole: TView) => string;
-  /** Liste de champs à prendre pour la signature, ex: ["species"] ou ["id","stage","watered"] */
   fields?: Array<string>;
 };
 
 export type SignatureChannel<TView, K extends string | number> = {
-  /** Notifie quand **au moins une** clé change de signature */
   sub(cb: (p: { value: TView; changedKeys: K[] }) => void): Promise<Unsubscribe>;
-  /** Notifie seulement si la signature de `key` change */
   subKey(key: K, cb: (p: { value: TView }) => void): Promise<Unsubscribe>;
-  /** Notifie si l’une des clés demandées change */
   subKeys(keys: K[], cb: (p: { value: TView; changedKeys: K[] }) => void): Promise<Unsubscribe>;
 };
 
 function stablePick(obj: any, fields: string[]): string {
   const out: any = {};
   for (const f of fields) {
-    // support "a.b.c"
     const v = getAtPath(obj, f.includes(".") ? f : [f]);
     out[f] = v;
   }
@@ -206,7 +180,6 @@ function makeSignatureChannel<TView, K extends string | number>(
         sig.set(key, s);
       }
     } else {
-      // record
       for (const [k, item] of Object.entries(value as Record<string, any>)) {
         const key = (opts.key ? opts.key(item, k, whole) : (k as any)) as K;
         const s = opts.sig
@@ -233,7 +206,6 @@ function makeSignatureChannel<TView, K extends string | number>(
       const whole = (path ? getAtPath<any>(src, path) : (src as any)) as TView;
       const { sig } = computeSig(whole);
       if (!mapEqual(prevSig, sig)) {
-        // calc changes
         const allKeys = new Set<K>([
           ...(prevSig ? (Array.from(prevSig.keys()) as K[]) : []),
           ...(Array.from(sig.keys()) as K[]),
@@ -264,26 +236,11 @@ function makeSignatureChannel<TView, K extends string | number>(
   return { sub, subKey, subKeys };
 }
 
-/* =============================== helpers facultatifs =============================== */
-
 export const HubEq = eq;
 export function makeAtom<T = any>(label: string) {
   return makeView<T, T>(label);
 }
 
-/**
- * Atom désigné par plusieurs noms possibles, le premier trouvé gagne.
- *
- * Le jeu renomme parfois un atom d’une version à l’autre. Comme un label
- * introuvable ne provoque aucune erreur — `set` et `subscribe` deviennent
- * simplement des no-ops — la fonctionnalité concernée s’arrête sans le moindre
- * signe. Lister l’ancien nom en repli garde le mod fonctionnel pendant la
- * transition (bundle en cache, rollback du jeu).
- *
- * Le nom retenu est mémorisé dès qu’il est résolu ; tant qu’aucun ne l’est, on
- * retente à chaque appel plutôt que de figer un mauvais choix au boot, avant
- * que les atoms du jeu ne soient enregistrés.
- */
 export function makeAliasedAtom<T = any>(labels: string[]): View<T> {
   let resolved: View<T> | null = null;
 

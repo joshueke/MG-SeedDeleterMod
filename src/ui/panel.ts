@@ -1,9 +1,3 @@
-// src/ui/panel.ts
-// Minimal standalone UI: a small floating toggle button + a draggable panel,
-// replacing the "Seed deleter" card that lived inside the full mod's HUD/Menu
-// framework (src/ui/menus/misc.ts + src/ui/menu.ts + src/ui/hud.ts). This mod
-// only has one feature, so it gets its own tiny window instead of a whole
-// multi-tab framework.
 import { SeedDeleterService, DEFAULT_SEED_DELETE_DELAY_MS, createButton } from "../services/seedDeleter";
 
 const TOGGLE_ID = "qws-seeddeleter-toggle";
@@ -21,11 +15,11 @@ function loadToggleMode(): ToggleMode {
   try {
     const stored = localStorage.getItem(TOGGLE_MODE_KEY);
     if (stored === "draggable" || stored === "fixed") return stored;
-  } catch { /* corrupt/blocked storage falls back to the default mode */ }
+  } catch {}
   return "fixed";
 }
 function saveToggleMode(mode: ToggleMode): void {
-  try { localStorage.setItem(TOGGLE_MODE_KEY, mode); } catch { /* ignore quota/availability errors */ }
+  try { localStorage.setItem(TOGGLE_MODE_KEY, mode); } catch {}
 }
 
 const NF_US = new Intl.NumberFormat("en-US");
@@ -67,19 +61,14 @@ function loadPosition(key: string): StoredPosition | null {
   try {
     const parsed = JSON.parse(localStorage.getItem(key) || "null");
     if (typeof parsed?.xFrac === "number" && typeof parsed?.yFrac === "number") return parsed;
-  } catch { /* corrupt/blocked storage falls back to the default position */ }
+  } catch {}
   return null;
 }
 
 function savePosition(key: string, pos: StoredPosition): void {
-  try { localStorage.setItem(key, JSON.stringify(pos)); } catch { /* ignore quota/availability errors */ }
+  try { localStorage.setItem(key, JSON.stringify(pos)); } catch {}
 }
 
-// Draggable position is stored as a fraction (0-1) of the space the element's
-// top-left corner can occupy, not as absolute pixels: resizing the page keeps
-// the element anchored at the same *relative* spot instead of leaving it
-// wherever its old pixel coordinates now land (which, when the page shrinks,
-// can be off-screen).
 function fracRange(size: number, viewportSize: number): number {
   return Math.max(0, viewportSize - size - 2 * VIEWPORT_MARGIN_PX);
 }
@@ -107,12 +96,6 @@ function placeAt(root: HTMLElement, left: number, top: number): void {
   root.style.bottom = "auto";
 }
 
-/**
- * Re-applies a saved relative position using the element's real (rendered)
- * size. Elements that are `display: none` measure as 0x0, so callers of
- * hidden elements should call this again once shown (see the panel's
- * setVisible) to correct any drift from that approximation.
- */
 function restoreSavedPosition(root: HTMLElement, storageKey: string): void {
   const saved = loadPosition(storageKey);
   if (!saved) return;
@@ -134,8 +117,6 @@ function makeDraggable(root: HTMLElement, handle: HTMLElement, storageKey?: stri
   handle.style.cursor = "grab";
   if (storageKey) {
     restoreSavedPosition(root, storageKey);
-    // Keeps the element anchored at its saved relative position as the page
-    // is resized, instead of only clamping it back once it overflows.
     window.addEventListener("resize", () => { if (enabled) restoreSavedPosition(root, storageKey); });
   }
 
@@ -177,8 +158,6 @@ function makeDraggable(root: HTMLElement, handle: HTMLElement, storageKey?: stri
       savePosition(storageKey, pxToFrac(r.left, r.top, r.width, r.height));
     }
   };
-  // A drag that actually moved the panel/button must not also fire the
-  // handle's click (which would otherwise open/close it right after dragging).
   const onClickCapture = (e: MouseEvent) => {
     if (moved) {
       e.preventDefault();
@@ -229,8 +208,6 @@ function createToggleButton(onToggle: () => void): ToggleButtonController {
     fontWeight: "700",
     boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
   } as any);
-  // Registered before onclick below so the drag-suppression capture listener
-  // (added inside makeDraggable) runs first and can block a post-drag click.
   const dragController = makeDraggable(btn, btn, TOGGLE_POSITION_KEY);
   btn.onclick = onToggle;
 
@@ -271,8 +248,6 @@ function createToggleButton(onToggle: () => void): ToggleButtonController {
         boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
         background: "rgba(22,27,34,0.92)",
       });
-      // No saved drag position yet (never dragged) — fall back to the default corner
-      // instead of leaving it wherever the fixed-mode coordinates happened to place it.
       if (!loadPosition(TOGGLE_POSITION_KEY)) {
         setStyles(btn, { left: "auto", top: "auto", right: "16px", bottom: "16px" });
       }
@@ -419,14 +394,9 @@ function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElement; se
 
   const setVisible = (v: boolean) => {
     panel.style.display = v ? "grid" : "none";
-    // The panel measures as 0x0 while `display: none`, so the position restored
-    // at creation time couldn't be clamped against its real size — redo it now
-    // that it's actually rendered.
     if (v) restoreSavedPosition(panel, PANEL_POSITION_KEY);
   };
   btnClose.onclick = () => setVisible(false);
-
-  /* ------------------------------ wiring ------------------------------ */
 
   const seedStatus = { species: "-", done: 0, total: 0, remaining: 0 };
   const describeStatus = () => {
@@ -533,10 +503,6 @@ function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElement; se
 function mountNow() {
   if (document.getElementById(TOGGLE_ID)) return;
 
-  // The toggle button's click callback needs `setVisible`, which only exists once the
-  // panel is created — but the panel's mode checkbox needs the toggle's controller too.
-  // Resolved with a forward reference: create the toggle first with a lazy callback,
-  // then create the panel, then wire the callback to the real thing.
   let openToggle = () => {};
   const toggle = createToggleButton(() => openToggle());
 
@@ -547,7 +513,6 @@ function mountNow() {
   document.body.appendChild(panel);
 }
 
-/** The mod runs at document-start, before document.body exists — wait for it. */
 export function mountSeedDeleterUI() {
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", mountNow, { once: true });

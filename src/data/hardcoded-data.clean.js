@@ -1,11 +1,6 @@
 // === Hardcoded game data (extracted from bundle) ===
-
-// Utiles si tu veux factoriser
-/** @param {string} guildId @returns {boolean} */
 const endsWith1 = guildId => String(guildId).endsWith("1");
-/** @param {string} guildId @returns {boolean} */
 const endsWith2 = guildId => String(guildId).endsWith("2");
-/** @param {string} guildId @returns {boolean} */
 const isEvenGuild = guildId => {
   const d = parseInt(String(guildId).slice(-1), 10);
   return Number.isInteger(d) && d % 2 === 0;
@@ -171,7 +166,6 @@ export const tileRefsSeeds = {
 };
 
 export const tileRefsItems = {
-  // UI / système (pas dans V.Item)
   Coin: 1,
   InventoryBag: 7,
   MoneyBag: 11,
@@ -188,7 +182,6 @@ export const tileRefsItems = {
   ArrowKeys: 41,
   Touchpad: 42,
 
-  // V.Item
   AmberlitPotion: "sprite/item/AmberlitPotion",
   ChilledPotion: "sprite/item/ChilledPotion",
   CropCleanser: "sprite/item/CropCleanser",
@@ -203,14 +196,12 @@ export const tileRefsItems = {
 };
 
 export const tileRefsAnimations = {
-  // Météo (pas dans V.Animation)
   Rain: 10,
   Frost: 20,
   Sunny: 30,
   AmberMoon: 40,
   Dawn: 50,
 
-  // V.Animation
   DawnCelestialActivationTile: "sprite/animation/DawnCelestialActivationTile",
   MoonCelestialActivationTile: "sprite/animation/MoonCelestialActivationTile",
 };
@@ -246,7 +237,6 @@ export const tileRefsPets = {
   WhiteCaribou: "sprite/pet/WhiteCaribou",
   WinterEgg: "sprite/pet/WinterEgg",
   Worm: "sprite/pet/Worm",
-  // Pas dans V.Pet (garder pour compatibilité)
   DivineEgg: 16,
   CelestialEgg: 17,
 }
@@ -1352,7 +1342,6 @@ export const plantCatalog = {
       coinPrice: 750000,
       creditPrice: 580,
       rarity: rarity.Mythic,
-      // expiryDate: $B, // TODO: fill in actual expiry date from game source
     },
     plant: {
       tileRef: tileRefsPlants.DatePalm,
@@ -1836,7 +1825,6 @@ export const eggCatalog = {
             Horse: 35,
             FireHorse: 5
         },
-        // expiryDate: A6, // TODO: fill in actual expiry date from game source
     },
 };
 
@@ -2317,7 +2305,6 @@ export const petAbilities = {
     baseProbability: 21,
     baseParameters: { eggGrowthTimeReductionMinutes: 7 }
   },
-  // utilisé par la dinde: EggGrowthBoostII_NEW
   EggGrowthBoostII_NEW: {
     name: "Egg Growth Boost II",
     description: "Reduces the time for eggs to hatch",
@@ -2325,7 +2312,6 @@ export const petAbilities = {
     baseProbability: 24,
     baseParameters: { eggGrowthTimeReductionMinutes: 9 }
   },
-  // ancien EggGrowthBoostIII remplacé par ce bloc
   EggGrowthBoostII: {
     name: "Egg Growth Boost III",
     description: "Reduces the time for eggs to hatch",
@@ -2653,7 +2639,6 @@ export const toolCatalog = {
 };
 
 export const decorCatalog = {
-  // Rochers
   SmallRock: {
     tileRef: tileRefsDecor.SmallRock,
     name: "Small Garden Rock",
@@ -2682,7 +2667,6 @@ export const decorCatalog = {
         isOneTimePurchase: !1,
     },
 
-  // Bois
   WoodBench: {
     tileRef: tileRefsDecor.WoodBench,
     rotationVariants: {
@@ -2765,7 +2749,6 @@ export const decorCatalog = {
         isOneTimePurchase: !1,
     },
 
-  // Pierre
   StoneBench: {
     tileRef: tileRefsDecor.StoneBench,
     rotationVariants: {
@@ -2831,7 +2814,6 @@ export const decorCatalog = {
         isOneTimePurchase: !1,
     },
 
-  // Marbre
   MarbleBench: {
     tileRef: tileRefsDecor.MarbleBench,
     rotationVariants: {
@@ -2888,7 +2870,6 @@ export const decorCatalog = {
     baseTileScale: 1.5, isOneTimePurchase: false, nudgeY: -0.30
   },
 
-  // Spéciaux
   MiniFairyCottage: {
     tileRef: tileRefsDecor.MiniFairyCottage,
     name: "Mini Fairy Cottage",
@@ -2957,7 +2938,6 @@ export const decorCatalog = {
     baseTileScale: 1.8, isOneTimePurchase: false, nudgeY: -0.59
   },
 
-  // Saisonniers (Halloween)
   HayBale: {
     tileRef: tileRefsDecor.HayBale,
     rotationVariants: {
@@ -3036,7 +3016,6 @@ export const decorCatalog = {
         rarity: rarity.Common,
         baseTileScale: 1,
         isOneTimePurchase: false,
-        // expiryDate: A6, // TODO: fill in actual expiry date from game source
     },
     FanousLantern: {
         tileRef: tileRefsDecor.FanousLantern,
@@ -3059,7 +3038,6 @@ export const decorCatalog = {
         rarity: rarity.Common,
         baseTileScale: 1,
         isOneTimePurchase: false,
-        // expiryDate: $B, // TODO: fill in actual expiry date from game source
     },
   SmallGravestone: {
     tileRef: tileRefsDecor.SmallGravestone,
@@ -3105,8 +3083,8 @@ export const weatherCatalog = {
     description:'Gives the Wet mutation to mature garden crops',
     type: 'weather',
     cycle: { kind: 'weather', startWindowMin: 20, startWindowMax: 35, durationMinutes: 5 },
-    weightInCycle: 0.75,                           // 75% des events météo
-    appliesRandomCropPercent: 30,                  // ~30% des cultures applicables
+    weightInCycle: 0.75,
+    appliesRandomCropPercent: 30,
     conditions: { requiresMature: true, requiresNoExistingModifier: true },
     mutations: [
       { name: 'Wet',    multiplier: 2 },
@@ -3123,7 +3101,7 @@ export const weatherCatalog = {
     type: 'weather',
     displayName: 'Snow',
     cycle: { kind: 'weather', startWindowMin: 20, startWindowMax: 35, durationMinutes: 5 },
-    weightInCycle: 0.25,                           // 25% des events météo
+    weightInCycle: 0.25,
     appliesRandomCropPercent: 30,
     conditions: { requiresMature: true, requiresNoExistingModifier: true },
     mutations: [
@@ -3154,7 +3132,7 @@ export const weatherCatalog = {
     type: 'lunar',
     displayName: 'Harvest Moon',
     cycle: { kind: 'lunar', periodMinutes: 240, durationMinutes: 10 },
-    weightInCycle: 0.33,                           // 33% des events lunaires
+    weightInCycle: 0.33,
     appliesRandomCropPercent: 30,
     conditions: { requiresMature: true, requiresNoExistingModifier: true },
     mutations: [
@@ -3169,7 +3147,7 @@ export const weatherCatalog = {
     description:'Gives the Dawnlit mutation to mature garden crops',
     type: 'lunar',
     cycle: { kind: 'lunar', periodMinutes: 240, durationMinutes: 10 },
-    weightInCycle: 0.67,                           // 67% des events lunaires
+    weightInCycle: 0.67,
     appliesRandomCropPercent: 30,
     conditions: { requiresMature: true, requiresNoExistingModifier: true },
     mutations: [
@@ -3188,26 +3166,6 @@ export const weatherCatalog = {
 
 }
 
-// Minutes for a pet's hunger to drain from full to empty, per species.
-//
-// Source: the game wiki. This value exists NOWHERE in the runtime bundle and
-// is not served by MGData either — unlike max hunger, which IS dynamic and
-// must be read from petCatalog's `coinsToFullyReplenishHunger`. Only the
-// depletion time is hardcoded here.
-//
-// Deliberately a standalone export rather than extra fields on petCatalog:
-// makeCatalogProxy() in src/data/index.ts resolves per species, not per
-// field, so it returns MGData's whole entry whenever the species is known —
-// a field added to the hardcoded petCatalog would be silently shadowed
-// in-game and never read.
-//
-// Keys are catalog species ids, NOT wiki display names. Four of them differ:
-// "Caribou" -> WhiteCaribou, "Snow Fox" -> SnowFox, "Fire Horse" -> FireHorse,
-// "Thunder Wolf" -> ThunderWolf.
-//
-// Covers all 26 pets in the catalog as of writing. A species missing from
-// this table is expected, not an error: consumers fall back to a relative
-// sustain score instead of showing a wrong duration.
 export const petHungerDepletionMinutes = {
   Bat: 30,
   Bee: 15,
