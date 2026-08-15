@@ -1,5 +1,7 @@
 # MG-SeedDeleterMod
 
+> **Disclaimer:** This mod is extracted from [ARIE's mod](https://github.com/Ariedam64/MG-AriesMod) and modified by Josh.
+
 MG-SeedDeleterMod is a browser userscript (Tampermonkey/Greasemonkey) written in TypeScript that adds a bulk seed-deletion tool to the browser-based gardening game *Magic Garden*. It injects a small floating toggle button that expands into a control panel, letting the player select one or more seed species and quantities, then delete them in bulk instead of one by one through the game's own inventory UI.
 
 Under the hood it hooks the page's `WebSocket` to find the game's live connection and issues the game's own `Wish` action (the same call the game uses to sacrifice/delete an item) once per unit being deleted.
