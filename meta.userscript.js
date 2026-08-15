@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MG Seed Deleter
 // @namespace    MC-SeedDeleterMod
-// @version      1.0.4
+// @version      0.0.7
 // @description  Standalone bulk seed deleter for Magic Garden, extracted from Arie's Mod
 // @match        https://1227719606223765687.discordsays.com/*
 // @match        https://magiccircle.gg/r/*

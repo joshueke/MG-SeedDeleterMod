@@ -11,6 +11,22 @@ const PANEL_ID = "qws-seeddeleter-panel";
 
 const TOGGLE_POSITION_KEY = "mgSeedDeleter.togglePosition.v1";
 const PANEL_POSITION_KEY = "mgSeedDeleter.panelPosition.v1";
+const TOGGLE_MODE_KEY = "mgSeedDeleter.toggleMode.v1";
+
+type ToggleMode = "draggable" | "fixed";
+const TOGGLE_FIXED_LEFT_PX = 90;
+const TOGGLE_FIXED_BOTTOM_PX = 10;
+
+function loadToggleMode(): ToggleMode {
+  try {
+    const stored = localStorage.getItem(TOGGLE_MODE_KEY);
+    if (stored === "draggable" || stored === "fixed") return stored;
+  } catch { /* corrupt/blocked storage falls back to the default mode */ }
+  return "fixed";
+}
+function saveToggleMode(mode: ToggleMode): void {
+  try { localStorage.setItem(TOGGLE_MODE_KEY, mode); } catch { /* ignore quota/availability errors */ }
+}
 
 const NF_US = new Intl.NumberFormat("en-US");
 const formatNum = (n: number) => NF_US.format(Math.max(0, Math.floor(n || 0)));
@@ -105,9 +121,12 @@ function restoreSavedPosition(root: HTMLElement, storageKey: string): void {
   placeAt(root, left, top);
 }
 
-function makeDraggable(root: HTMLElement, handle: HTMLElement, storageKey?: string) {
+interface DragController { setEnabled: (enabled: boolean) => void }
+
+function makeDraggable(root: HTMLElement, handle: HTMLElement, storageKey?: string): DragController {
   let dragging = false;
   let moved = false;
+  let enabled = true;
   let ox = 0, oy = 0;
   let startX = 0, startY = 0;
   let width = 0, height = 0;
@@ -117,11 +136,11 @@ function makeDraggable(root: HTMLElement, handle: HTMLElement, storageKey?: stri
     restoreSavedPosition(root, storageKey);
     // Keeps the element anchored at its saved relative position as the page
     // is resized, instead of only clamping it back once it overflows.
-    window.addEventListener("resize", () => restoreSavedPosition(root, storageKey));
+    window.addEventListener("resize", () => { if (enabled) restoreSavedPosition(root, storageKey); });
   }
 
   const onDown = (e: MouseEvent) => {
-    if (e.button !== 0) return;
+    if (!enabled || e.button !== 0) return;
     dragging = true;
     moved = false;
     startX = e.clientX;
@@ -150,7 +169,7 @@ function makeDraggable(root: HTMLElement, handle: HTMLElement, storageKey?: stri
   };
   const onUp = () => {
     dragging = false;
-    handle.style.cursor = "grab";
+    handle.style.cursor = enabled ? "grab" : "pointer";
     document.body.style.userSelect = "";
     document.removeEventListener("mousemove", onMove);
     if (moved && storageKey) {
@@ -169,9 +188,23 @@ function makeDraggable(root: HTMLElement, handle: HTMLElement, storageKey?: stri
 
   handle.addEventListener("mousedown", onDown);
   handle.addEventListener("click", onClickCapture, true);
+
+  return {
+    setEnabled(v: boolean) {
+      enabled = v;
+      handle.style.cursor = v ? "grab" : "pointer";
+      if (v && storageKey) restoreSavedPosition(root, storageKey);
+    },
+  };
 }
 
-function createToggleButton(onToggle: () => void): HTMLButtonElement {
+interface ToggleButtonController {
+  btn: HTMLButtonElement;
+  setMode: (mode: ToggleMode) => void;
+  getMode: () => ToggleMode;
+}
+
+function createToggleButton(onToggle: () => void): ToggleButtonController {
   const btn = document.createElement("button");
   btn.id = TOGGLE_ID;
   btn.textContent = "🌱";
@@ -181,28 +214,74 @@ function createToggleButton(onToggle: () => void): HTMLButtonElement {
     right: "16px",
     bottom: "16px",
     zIndex: "999998",
-    width: "40px",
-    height: "40px",
+    width: "32px",
+    height: "32px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     padding: "0",
-    borderRadius: "999px",
+    borderRadius: "8px",
     border: "1px solid #39424c",
     background: "rgba(22,27,34,0.92)",
     color: "#E7EEF7",
     fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial",
-    fontSize: "18px",
+    fontSize: "16px",
     fontWeight: "700",
     boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
   } as any);
-  btn.onmouseenter = () => (btn.style.borderColor = "#6aa1");
-  btn.onmouseleave = () => (btn.style.borderColor = "#39424c");
   // Registered before onclick below so the drag-suppression capture listener
   // (added inside makeDraggable) runs first and can block a post-drag click.
-  makeDraggable(btn, btn, TOGGLE_POSITION_KEY);
+  const dragController = makeDraggable(btn, btn, TOGGLE_POSITION_KEY);
   btn.onclick = onToggle;
-  return btn;
+
+  let currentMode: ToggleMode = loadToggleMode();
+  btn.onmouseenter = () => {
+    if (currentMode === "fixed") {
+      btn.style.borderColor = "rgba(167, 139, 250, .35)";
+      btn.style.background = "linear-gradient(rgba(167, 139, 250, .16), rgba(167, 139, 250, .16)), var(--gc-raised, #121219)";
+    } else {
+      btn.style.borderColor = "#6aa1";
+    }
+  };
+  btn.onmouseleave = () => {
+    if (currentMode === "fixed") {
+      btn.style.borderColor = "transparent";
+      btn.style.background = "#121219";
+    } else {
+      btn.style.borderColor = "#39424c";
+    }
+  };
+
+  const setMode = (mode: ToggleMode) => {
+    currentMode = mode;
+    dragController.setEnabled(mode === "draggable");
+    if (mode === "fixed") {
+      setStyles(btn, {
+        left: `${TOGGLE_FIXED_LEFT_PX}px`,
+        bottom: `${TOGGLE_FIXED_BOTTOM_PX}px`,
+        top: "auto",
+        right: "auto",
+        border: "1px solid transparent",
+        boxShadow: "none",
+        background: "#121219",
+      });
+    } else {
+      setStyles(btn, {
+        border: "1px solid #39424c",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+        background: "rgba(22,27,34,0.92)",
+      });
+      // No saved drag position yet (never dragged) — fall back to the default corner
+      // instead of leaving it wherever the fixed-mode coordinates happened to place it.
+      if (!loadPosition(TOGGLE_POSITION_KEY)) {
+        setStyles(btn, { left: "auto", top: "auto", right: "16px", bottom: "16px" });
+      }
+    }
+    saveToggleMode(mode);
+  };
+  setMode(currentMode);
+
+  return { btn, setMode, getMode: () => currentMode };
 }
 
 function createRow(label: string, control: HTMLElement): HTMLElement {
@@ -227,7 +306,31 @@ function createRow(label: string, control: HTMLElement): HTMLElement {
   return row;
 }
 
-function createPanel(): { panel: HTMLDivElement; setVisible: (v: boolean) => void } {
+function createVerticalRow(label: string, control: HTMLElement): HTMLElement {
+  const row = setStyles(document.createElement("div"), {
+    display: "flex",
+    alignItems: "center",
+    flexDirection: "column",
+    gap: "5px",
+    padding: "8px 10px",
+    border: "1px solid #2b3340",
+    borderRadius: "8px",
+    background: "#0f1318",
+  });
+  const text = document.createElement("div");
+  text.textContent = label;
+  setStyles(text, { fontSize: "12px", fontWeight: "600", opacity: "0.85", display: "flex", justifyContent: "center" });
+  const controls = setStyles(document.createElement("div"), {
+    display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", justifyContent: "flex-end",
+  });
+  controls.appendChild(control);
+  row.append(text, controls);
+  return row;
+}
+
+interface ToggleModeControl { setMode: (mode: ToggleMode) => void; getMode: () => ToggleMode }
+
+function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElement; setVisible: (v: boolean) => void } {
   const panel = document.createElement("div");
   panel.id = PANEL_ID;
   setStyles(panel, {
@@ -277,7 +380,7 @@ function createPanel(): { panel: HTMLDivElement; setVisible: (v: boolean) => voi
     color: "#dbe7ff",
   });
   summaryPill.textContent = "0 species - 0 seeds";
-  const summaryRow = createRow("Selected", summaryPill);
+  const summaryRow = createVerticalRow("Selected", summaryPill);
 
   const actions = setStyles(document.createElement("div"), { display: "flex", gap: "6px", flexWrap: "wrap" });
   const btnSelect = createButton("Select seeds", { background: "#1f6feb", borderColor: "#1f6feb" });
@@ -304,7 +407,14 @@ function createPanel(): { panel: HTMLDivElement; setVisible: (v: boolean) => voi
   statusControls.append(controlRow, statusLine);
   const statusRow = createRow("Status", statusControls);
 
-  panel.append(header, summaryRow, actionsRow, statusRow);
+  const modeCheckbox = document.createElement("input");
+  modeCheckbox.type = "checkbox";
+  modeCheckbox.checked = toggleMode.getMode() === "fixed";
+  setStyles(modeCheckbox, { width: "16px", height: "16px", cursor: "pointer" });
+  modeCheckbox.onchange = () => toggleMode.setMode(modeCheckbox.checked ? "fixed" : "draggable");
+  const modeRow = createRow("Fixed toggle button", modeCheckbox);
+
+  panel.append(header, summaryRow, actionsRow, statusRow, modeRow);
   makeDraggable(panel, header, PANEL_POSITION_KEY);
 
   const setVisible = (v: boolean) => {
@@ -423,12 +533,17 @@ function createPanel(): { panel: HTMLDivElement; setVisible: (v: boolean) => voi
 function mountNow() {
   if (document.getElementById(TOGGLE_ID)) return;
 
-  const { panel, setVisible } = createPanel();
-  const toggle = createToggleButton(() => {
-    setVisible(panel.style.display === "none");
-  });
+  // The toggle button's click callback needs `setVisible`, which only exists once the
+  // panel is created — but the panel's mode checkbox needs the toggle's controller too.
+  // Resolved with a forward reference: create the toggle first with a lazy callback,
+  // then create the panel, then wire the callback to the real thing.
+  let openToggle = () => {};
+  const toggle = createToggleButton(() => openToggle());
 
-  document.body.appendChild(toggle);
+  const { panel, setVisible } = createPanel({ setMode: toggle.setMode, getMode: toggle.getMode });
+  openToggle = () => setVisible(panel.style.display === "none");
+
+  document.body.appendChild(toggle.btn);
   document.body.appendChild(panel);
 }
 

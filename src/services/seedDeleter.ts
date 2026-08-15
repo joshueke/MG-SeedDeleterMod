@@ -512,10 +512,17 @@ function createSeedOverlay(): HTMLDivElement {
   return box;
 }
 
+function centerOverlay(el: HTMLDivElement) {
+  const r = el.getBoundingClientRect();
+  el.style.left = `${Math.max(4, (window.innerWidth - r.width) / 2)}px`;
+  el.style.top = `${Math.max(4, (window.innerHeight - r.height) / 2)}px`;
+}
+
 function showSeedOverlay() {
   if (document.getElementById(OVERLAY_ID)) return;
   const el = createSeedOverlay();
   document.body.appendChild(el);
+  centerOverlay(el);
   installOverlayKeyGuards();
   refreshList();
   updateSummary();
