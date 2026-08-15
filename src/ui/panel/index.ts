@@ -1,5 +1,7 @@
 import { createToggleButton, TOGGLE_ID } from "./toggleButton";
 import { createPanel } from "./seedPanel";
+import { installOpenHotkeyListener } from "./hotkey";
+import { isSelectionOverlayOpen } from "../../services/seedDeleter";
 
 function mountNow() {
   if (document.getElementById(TOGGLE_ID)) return;
@@ -9,6 +11,11 @@ function mountNow() {
 
   const { panel, setVisible } = createPanel({ setMode: toggle.setMode, getMode: toggle.getMode });
   openToggle = () => setVisible(panel.style.display === "none");
+
+  installOpenHotkeyListener(() => {
+    if (isSelectionOverlayOpen()) return;
+    openToggle();
+  });
 
   document.body.appendChild(toggle.btn);
   document.body.appendChild(panel);

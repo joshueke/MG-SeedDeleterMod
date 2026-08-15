@@ -504,6 +504,9 @@ function hideSeedOverlay() {
   if (el) el.remove();
   removeOverlayKeyGuards();
 }
+export function isSelectionOverlayOpen(): boolean {
+  return !!document.getElementById(OVERLAY_ID);
+}
 
 function renderListRow(item: SeedSelection): HTMLElement {
   const row = document.createElement("div");

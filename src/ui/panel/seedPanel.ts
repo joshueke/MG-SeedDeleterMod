@@ -3,6 +3,7 @@ import { formatNum, EXTRA_ESTIMATE_BUFFER_PER_DELETE_MS, formatDurationShort, fo
 import { setStyles } from "./dom";
 import { makeDraggable, restoreSavedPosition } from "./dragPosition";
 import { createRow, createVerticalRow, createSectionTitle } from "./panelRows";
+import { createHotkeyPicker } from "./hotkey";
 import type { ToggleMode } from "./toggleButton";
 
 const PANEL_ID = "qws-seeddeleter-panel";
@@ -125,11 +126,14 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
   modeCheckbox.onchange = () => toggleMode.setMode(modeCheckbox.checked ? "fixed" : "draggable");
   const modeRow = createRow("Lock 🌱 button", modeCheckbox, "When unchecked, you can drag the button anywhere on screen.");
 
+  const hotkeyPicker = createHotkeyPicker();
+  const hotkeyRow = createRow("Open panel shortcut", hotkeyPicker, "Press this key anywhere (Esc closes the panel) to open/close it.");
+
   panel.append(
     header,
     createSectionTitle("Selection"), summaryRow, selectionActionsRow,
     createSectionTitle("Deletion"), runControlsRow, progressRow,
-    createSectionTitle("Settings"), modeRow,
+    createSectionTitle("Settings"), modeRow, hotkeyRow,
   );
   makeDraggable(panel, header, PANEL_POSITION_KEY);
 
@@ -138,6 +142,12 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
     if (v) restoreSavedPosition(panel, PANEL_POSITION_KEY);
   };
   btnClose.onclick = () => setVisible(false);
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (panel.style.display === "none") return;
+    setVisible(false);
+  });
 
   const seedStatus = { species: "-", done: 0, total: 0, remaining: 0 };
   let estimatedFinish: number | null = null;
