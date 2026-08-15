@@ -3,6 +3,7 @@ import { Atoms } from "../store/atoms";
 import { sendToGame } from "../core/sendToGame";
 import { fakeInventoryShow, isInventoryPanelOpen, waitInventoryPanelClosed, fakeInventoryHide } from "./fakeModal";
 import { toastSimple } from "../ui/toast";
+import { formatNum } from "../utils/format";
 
 export type SeedItem = {
   species: string;
@@ -19,9 +20,6 @@ async function wish(itemId: string) {
 }
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
-
-const NF_US = new Intl.NumberFormat("en-US");
-const formatNum = (n: number) => NF_US.format(Math.max(0, Math.floor(n || 0)));
 
 function buildDisplayNameToSpeciesFromCatalog(): Map<string, string[]> {
   const map = new Map<string, string[]>();
