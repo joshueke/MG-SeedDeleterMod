@@ -1,0 +1,14 @@
+{
+  "name": "mg-seed-deleter",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "serve": "npx http-server dist -p 5175 --cors"
+  },
+  "devDependencies": {
+    "@types/tampermonkey": "^5.0.4",
+    "esbuild": "^0.24.2"
+  }
+}
