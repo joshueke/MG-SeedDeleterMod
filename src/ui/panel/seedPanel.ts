@@ -1,12 +1,18 @@
 import { SeedDeleterService, DEFAULT_SEED_DELETE_DELAY_MS, createButton } from "../../services/seedDeleter";
-import { formatNum, EXTRA_ESTIMATE_BUFFER_PER_DELETE_MS, buildEstimateSentence } from "../../utils/format";
+import { formatNum, EXTRA_ESTIMATE_BUFFER_PER_DELETE_MS, formatDurationShort, formatFinishTime } from "../../utils/format";
 import { setStyles } from "./dom";
 import { makeDraggable, restoreSavedPosition } from "./dragPosition";
-import { createRow, createVerticalRow } from "./panelRows";
+import { createRow, createVerticalRow, createSectionTitle } from "./panelRows";
 import type { ToggleMode } from "./toggleButton";
 
 const PANEL_ID = "qws-seeddeleter-panel";
 const PANEL_POSITION_KEY = "mgSeedDeleter.panelPosition.v1";
+
+const DELETE_CONFIRM_TIMEOUT_MS = 3000;
+
+const COLOR_IDLE = "#2b3340";
+const COLOR_RUNNING = "#1f6feb";
+const COLOR_PAUSED = "#d29922";
 
 export interface ToggleModeControl { setMode: (mode: ToggleMode) => void; getMode: () => ToggleMode }
 
@@ -19,7 +25,7 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
     bottom: "62px",
     zIndex: "999998",
     display: "none",
-    gridTemplateRows: "auto auto auto",
+    flexDirection: "column",
     gap: "8px",
     minWidth: "320px",
     maxWidth: "380px",
@@ -37,9 +43,14 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
   const header = setStyles(document.createElement("div"), {
     display: "flex", alignItems: "center", justifyContent: "space-between",
   });
+  const titleCol = document.createElement("div");
   const title = document.createElement("div");
-  title.textContent = "Seed deleter";
+  title.textContent = "🌱 Seed deleter";
   setStyles(title, { fontWeight: "700", fontSize: "13px" });
+  const subtitle = document.createElement("div");
+  subtitle.textContent = "Pick seeds from your inventory and delete them in bulk.";
+  setStyles(subtitle, { fontSize: "11px", opacity: "0.6", marginTop: "2px" });
+  titleCol.append(title, subtitle);
   const btnClose = createButton("×", {
     padding: "0 6px",
     lineHeight: "18px",
@@ -48,8 +59,10 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
     border: "1px solid transparent",
   });
   btnClose.title = "Close";
-  header.append(title, btnClose);
+  btnClose.setAttribute("aria-label", "Close panel");
+  header.append(titleCol, btnClose);
 
+  // --- Selection ---
   const summaryPill = setStyles(document.createElement("div"), {
     padding: "3px 8px",
     borderRadius: "999px",
@@ -59,69 +72,105 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
     fontWeight: "600",
     color: "#dbe7ff",
   });
-  summaryPill.textContent = "0 species - 0 seeds";
-  const summaryRow = createVerticalRow("Selected", summaryPill);
+  summaryPill.textContent = "No seeds selected yet";
+  const summaryRow = createVerticalRow("Selection", summaryPill, "What's queued up for deletion right now.");
 
-  const actions = setStyles(document.createElement("div"), { display: "flex", gap: "6px", flexWrap: "wrap" });
+  const selectionActions = setStyles(document.createElement("div"), { display: "flex", gap: "6px", flexWrap: "wrap" });
   const btnSelect = createButton("Select seeds", { background: "#1f6feb", borderColor: "#1f6feb" });
-  const btnDelete = createButton("Delete", { background: "#a1260d", borderColor: "#a1260d" });
-  const btnClear = createButton("Clear");
-  actions.append(btnSelect, btnDelete, btnClear);
-  const actionsRow = createRow("Actions", actions);
+  const btnClear = createButton("Clear selection");
+  selectionActions.append(btnSelect, btnClear);
+  const selectionActionsRow = createVerticalRow("Pick seeds", selectionActions, "Opens your inventory so you can choose which seeds to delete.");
+
+  // --- Deletion ---
+  const progressTrack = setStyles(document.createElement("div"), {
+    width: "100%",
+    height: "6px",
+    borderRadius: "999px",
+    background: "#0a0d11",
+    overflow: "hidden",
+  });
+  const progressFill = setStyles(document.createElement("div"), {
+    height: "100%",
+    width: "0%",
+    borderRadius: "999px",
+    background: COLOR_IDLE,
+    transition: "width 120ms linear, background 150ms linear",
+  });
+  progressTrack.appendChild(progressFill);
 
   const statusLine = setStyles(document.createElement("div"), {
-    padding: "3px 8px", borderRadius: "999px", border: "1px solid #2b3340",
-    background: "#141b22", fontSize: "11px", fontWeight: "600",
+    fontSize: "11px", fontWeight: "600", opacity: "0.85",
   });
-  statusLine.textContent = "Idle";
+  statusLine.textContent = "Idle - nothing is being deleted.";
 
-  const controlRow = setStyles(document.createElement("div"), { display: "flex", gap: "6px", flexWrap: "wrap" });
+  const progressCol = setStyles(document.createElement("div"), {
+    display: "flex", flexDirection: "column", gap: "6px", width: "100%",
+  });
+  progressCol.append(statusLine, progressTrack);
+  const progressRow = createVerticalRow("Progress", progressCol, "Live status of the current deletion.", { stretch: true });
+
+  const runControls = setStyles(document.createElement("div"), { display: "flex", gap: "6px", flexWrap: "wrap" });
+  const btnDelete = createButton("Delete selected", { background: "#a1260d", borderColor: "#a1260d" });
   const btnPause = createButton("Pause");
   const btnPlay = createButton("Play");
   const btnStop = createButton("Stop", { background: "transparent" });
-  controlRow.append(btnPause, btnPlay, btnStop);
+  runControls.append(btnDelete, btnPause, btnPlay, btnStop);
+  const runControlsRow = createVerticalRow("Run", runControls, "Start the deletion, or pause/resume/stop it while it runs.");
 
-  const statusControls = setStyles(document.createElement("div"), {
-    display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end",
-  });
-  statusControls.append(controlRow, statusLine);
-  const statusRow = createRow("Status", statusControls);
-
+  // --- Settings ---
   const modeCheckbox = document.createElement("input");
   modeCheckbox.type = "checkbox";
   modeCheckbox.checked = toggleMode.getMode() === "fixed";
   setStyles(modeCheckbox, { width: "16px", height: "16px", cursor: "pointer" });
   modeCheckbox.onchange = () => toggleMode.setMode(modeCheckbox.checked ? "fixed" : "draggable");
-  const modeRow = createRow("Fixed toggle button", modeCheckbox);
+  const modeRow = createRow("Lock 🌱 button", modeCheckbox, "When unchecked, you can drag the button anywhere on screen.");
 
-  panel.append(header, summaryRow, actionsRow, statusRow, modeRow);
+  panel.append(
+    header,
+    createSectionTitle("Selection"), summaryRow, selectionActionsRow,
+    createSectionTitle("Deletion"), runControlsRow, progressRow,
+    createSectionTitle("Settings"), modeRow,
+  );
   makeDraggable(panel, header, PANEL_POSITION_KEY);
 
   const setVisible = (v: boolean) => {
-    panel.style.display = v ? "grid" : "none";
+    panel.style.display = v ? "flex" : "none";
     if (v) restoreSavedPosition(panel, PANEL_POSITION_KEY);
   };
   btnClose.onclick = () => setVisible(false);
 
   const seedStatus = { species: "-", done: 0, total: 0, remaining: 0 };
+  let estimatedFinish: number | null = null;
   const describeStatus = () => {
     const running = SeedDeleterService.isSeedDeletionRunning();
     const paused = SeedDeleterService.isSeedDeletionPaused();
+    if (!running) return "Idle - nothing is being deleted.";
     const base = `${seedStatus.species || "-"} (${seedStatus.done}/${seedStatus.total})`;
-    if (!running) return "Idle";
-    return paused ? `Paused - ${base}` : base;
+    if (paused) return `Paused - ${base}`;
+    const eta = estimatedFinish ? ` · ETA ${formatFinishTime(estimatedFinish)}` : "";
+    return `Deleting ${base}${eta}`;
   };
-  const updateStatusUI = () => { statusLine.textContent = describeStatus(); };
+  const updateProgressBar = () => {
+    const running = SeedDeleterService.isSeedDeletionRunning();
+    const paused = SeedDeleterService.isSeedDeletionPaused();
+    const pct = seedStatus.total > 0 ? Math.min(100, Math.round((seedStatus.done / seedStatus.total) * 100)) : 0;
+    progressFill.style.width = `${running ? pct : 0}%`;
+    progressFill.style.background = !running ? COLOR_IDLE : paused ? COLOR_PAUSED : COLOR_RUNNING;
+  };
+  const updateStatusUI = () => {
+    statusLine.textContent = describeStatus();
+    updateProgressBar();
+  };
   const updateControlState = () => {
     const running = SeedDeleterService.isSeedDeletionRunning();
     const paused = SeedDeleterService.isSeedDeletionPaused();
     btnPause.disabled = !running || paused;
     btnPlay.disabled = !running || !paused;
     btnStop.disabled = !running;
+    btnSelect.disabled = running;
     updateStatusUI();
   };
 
-  let estimatedFinish: number | null = null;
   let summaryTimer: number | null = null;
   const clearSummaryTimer = () => {
     if (summaryTimer !== null) { clearTimeout(summaryTimer); summaryTimer = null; }
@@ -137,18 +186,35 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
     for (const it of sel) totalQty += Math.max(0, Math.floor((it as any)?.qty || 0));
     return { speciesCount: sel.length, totalQty };
   }
+
+  let deleteArmed = false;
+  let deleteArmTimer: number | null = null;
+  const defaultDeleteLabel = (totalQty: number) => (totalQty > 0 ? `Delete ${formatNum(totalQty)} seeds` : "Delete selected");
+  const resetDeleteArm = () => {
+    deleteArmed = false;
+    if (deleteArmTimer !== null) { clearTimeout(deleteArmTimer); deleteArmTimer = null; }
+    setStyles(btnDelete, { background: "#a1260d", borderColor: "#a1260d" });
+    const { totalQty } = readSelection();
+    btnDelete.textContent = defaultDeleteLabel(totalQty);
+  };
+
   function updateSummaryUI() {
     const { speciesCount, totalQty } = readSelection();
-    const estimateMs = totalQty * (DEFAULT_SEED_DELETE_DELAY_MS + EXTRA_ESTIMATE_BUFFER_PER_DELETE_MS);
     const isRunning = SeedDeleterService.isSeedDeletionRunning();
-    const finishTimestamp = isRunning
-      ? estimatedFinish
-      : estimateMs > 0 ? Date.now() + estimateMs : null;
-    const estimateText = buildEstimateSentence(totalQty, DEFAULT_SEED_DELETE_DELAY_MS, finishTimestamp);
-    summaryPill.textContent = `${speciesCount} species - ${formatNum(totalQty)} seeds${estimateText}`;
+
+    if (speciesCount <= 0 || totalQty <= 0) {
+      summaryPill.textContent = "No seeds selected yet";
+    } else {
+      const estimateMs = totalQty * (DEFAULT_SEED_DELETE_DELAY_MS + EXTRA_ESTIMATE_BUFFER_PER_DELETE_MS);
+      const estimateText = estimateMs > 0 ? ` · ~${formatDurationShort(estimateMs)} to delete` : "";
+      summaryPill.textContent = `${speciesCount} species, ${formatNum(totalQty)} seeds selected${estimateText}`;
+    }
+
     const has = speciesCount > 0 && totalQty > 0;
-    btnDelete.disabled = !has;
+    btnDelete.disabled = !has || isRunning;
     btnClear.disabled = !has;
+    if (!deleteArmed) btnDelete.textContent = defaultDeleteLabel(totalQty);
+
     if (!isRunning && totalQty > 0) scheduleSummaryRefresh(); else clearSummaryTimer();
   }
 
@@ -163,8 +229,10 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
   };
   const onComplete = () => {
     seedStatus.species = "-"; seedStatus.done = 0; seedStatus.total = 0; seedStatus.remaining = 0;
+    estimatedFinish = null;
     updateStatusUI();
     updateControlState();
+    updateSummaryUI();
   };
   const onPaused = () => updateControlState();
   const onResumed = () => updateControlState();
@@ -180,17 +248,29 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
 
   btnSelect.onclick = async () => {
     await SeedDeleterService.openSeedSelectorFlow(setVisible);
+    resetDeleteArm();
     updateSummaryUI();
   };
   btnClear.onclick = () => {
     SeedDeleterService.clearSeedSelection();
+    resetDeleteArm();
     updateSummaryUI();
   };
   btnDelete.onclick = async () => {
+    if (!deleteArmed) {
+      deleteArmed = true;
+      btnDelete.textContent = "Click again to confirm";
+      setStyles(btnDelete, { background: "#da3633", borderColor: "#da3633" });
+      deleteArmTimer = window.setTimeout(resetDeleteArm, DELETE_CONFIRM_TIMEOUT_MS);
+      return;
+    }
+
     const { totalQty } = readSelection();
     const estimateMs = totalQty * (DEFAULT_SEED_DELETE_DELAY_MS + EXTRA_ESTIMATE_BUFFER_PER_DELETE_MS);
     estimatedFinish = estimateMs > 0 ? Date.now() + estimateMs : null;
     clearSummaryTimer();
+    resetDeleteArm();
+    updateControlState();
     const deletionPromise = SeedDeleterService.deleteSelectedSeeds({ delayMs: DEFAULT_SEED_DELETE_DELAY_MS });
     updateSummaryUI();
     await deletionPromise;
