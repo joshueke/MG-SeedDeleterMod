@@ -2,8 +2,8 @@
 // @name         MG Seed Deleter
 // @author       Joshueke
 // @namespace    MC-SeedDeleterMod
-// @version      0.0.8
-// @description  Standalone bulk seed deleter for Magic Garden, extracted from Arie's Mod
+// @version      0.0.81
+// @description  Bulk seed deleter for Magic Garden with a draggable panel, multi-species selection, and pause/resume/stop with live progress and ETA, extracted from Arie's Mod
 // @match        https://1227719606223765687.discordsays.com/*
 // @match        https://magiccircle.gg/r/*
 // @match        https://magicgarden.gg/r/*
@@ -4267,22 +4267,35 @@
     };
     handle.addEventListener("mousedown", onDown);
   }
+  var BTN_STYLE_ID = "qws-seeddeleter-btn-style";
+  var BTN_CLASS = "qws-sd-btn";
+  function ensureButtonStylesInjected() {
+    if (document.getElementById(BTN_STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = BTN_STYLE_ID;
+    style.textContent = `
+    .${BTN_CLASS} { cursor: pointer; transition: filter 100ms ease, border-color 100ms ease, transform 80ms ease, opacity 100ms ease; }
+    .${BTN_CLASS}:hover:not(:disabled) { filter: brightness(1.25); border-color: #8ac6ff; transform: translateY(-1px); }
+    .${BTN_CLASS}:active:not(:disabled) { filter: brightness(0.9); transform: translateY(0); }
+    .${BTN_CLASS}:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(0.4); }
+  `;
+    document.head.appendChild(style);
+  }
   function createButton(label, styleOverride) {
+    ensureButtonStylesInjected();
     const b = document.createElement("button");
     b.textContent = label;
+    b.classList.add(BTN_CLASS);
     setStyles2(b, {
       padding: "4px 8px",
       borderRadius: "8px",
       border: "1px solid #4446",
       background: "#161b22",
       color: "#E7EEF7",
-      cursor: "pointer",
       fontWeight: "600",
       fontSize: "12px",
       ...styleOverride
     });
-    b.onmouseenter = () => b.style.borderColor = "#6aa1";
-    b.onmouseleave = () => b.style.borderColor = "#4446";
     return b;
   }
   var overlayKeyGuardsOn = false;
@@ -4869,6 +4882,18 @@
     const modeRow = createRow("Lock \u{1F331} button", modeCheckbox, "When unchecked, you can drag the button anywhere on screen.");
     const hotkeyPicker = createHotkeyPicker();
     const hotkeyRow = createRow("Open panel shortcut", hotkeyPicker, "Press this key anywhere (Esc closes the panel) to open/close it.");
+    const GITHUB_URL = "https://github.com/joshueke/MG-SeedDeleterMod";
+    const versionLabel = setStyles(document.createElement("div"), {
+      fontSize: "12px",
+      fontWeight: "600",
+      opacity: "0.85",
+      cursor: "pointer",
+      textDecoration: "underline"
+    });
+    versionLabel.textContent = `v${"0.0.81"}`;
+    versionLabel.title = "Open project on GitHub";
+    versionLabel.onclick = () => window.open(GITHUB_URL, "_blank", "noopener,noreferrer");
+    const versionRow = createRow("Version", versionLabel, "Current version of the Seed Deleter userscript. Click to open the GitHub repo.");
     panel.append(
       header,
       createSectionTitle("Selection"),
@@ -4879,7 +4904,9 @@
       progressRow,
       createSectionTitle("Settings"),
       modeRow,
-      hotkeyRow
+      hotkeyRow,
+      createSectionTitle("Info"),
+      versionRow
     );
     makeDraggable(panel, header, PANEL_POSITION_KEY);
     const setVisible = (v) => {

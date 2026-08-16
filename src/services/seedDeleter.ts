@@ -365,22 +365,36 @@ function makeDraggable(root: HTMLDivElement, handle: HTMLElement) {
   handle.addEventListener("mousedown", onDown);
 }
 
+const BTN_STYLE_ID = "qws-seeddeleter-btn-style";
+const BTN_CLASS = "qws-sd-btn";
+function ensureButtonStylesInjected() {
+  if (document.getElementById(BTN_STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = BTN_STYLE_ID;
+  style.textContent = `
+    .${BTN_CLASS} { cursor: pointer; transition: filter 100ms ease, border-color 100ms ease, transform 80ms ease, opacity 100ms ease; }
+    .${BTN_CLASS}:hover:not(:disabled) { filter: brightness(1.25); border-color: #8ac6ff; transform: translateY(-1px); }
+    .${BTN_CLASS}:active:not(:disabled) { filter: brightness(0.9); transform: translateY(0); }
+    .${BTN_CLASS}:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(0.4); }
+  `;
+  document.head.appendChild(style);
+}
+
 export function createButton(label: string, styleOverride?: Partial<CSSStyleDeclaration>) {
+  ensureButtonStylesInjected();
   const b = document.createElement("button");
   b.textContent = label;
+  b.classList.add(BTN_CLASS);
   setStyles(b, {
     padding: "4px 8px",
     borderRadius: "8px",
     border: "1px solid #4446",
     background: "#161b22",
     color: "#E7EEF7",
-    cursor: "pointer",
     fontWeight: "600",
     fontSize: "12px",
     ...styleOverride,
   });
-  b.onmouseenter = () => (b.style.borderColor = "#6aa1");
-  b.onmouseleave = () => (b.style.borderColor = "#4446");
   return b;
 }
 

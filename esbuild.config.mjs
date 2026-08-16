@@ -12,6 +12,9 @@ const outDir  = path.join(__dirname, 'dist');
 const meta    = (await fs.readFile(path.join(__dirname, 'meta.userscript.js'), 'utf8')).trim() + '\n';
 await fs.mkdir(outDir, { recursive: true });
 
+const versionMatch = meta.match(/@version\s+(\S+)/);
+const version = versionMatch ? versionMatch[1] : '0.0.0';
+
 const baseOptions = {
   entryPoints: [path.join(__dirname, 'src', 'main.ts')],
   bundle: true,
@@ -22,6 +25,9 @@ const baseOptions = {
   legalComments: 'none',
   write: false,                 // grab the bundle in memory
   logLevel: 'info',
+  define: {
+    __MG_VERSION__: JSON.stringify(version),
+  },
 };
 
 async function buildBundle() {

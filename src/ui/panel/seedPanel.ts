@@ -15,6 +15,8 @@ const COLOR_IDLE = "#2b3340";
 const COLOR_RUNNING = "#1f6feb";
 const COLOR_PAUSED = "#d29922";
 
+declare const __MG_VERSION__: string;
+
 export interface ToggleModeControl { setMode: (mode: ToggleMode) => void; getMode: () => ToggleMode }
 
 export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElement; setVisible: (v: boolean) => void } {
@@ -129,11 +131,23 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
   const hotkeyPicker = createHotkeyPicker();
   const hotkeyRow = createRow("Open panel shortcut", hotkeyPicker, "Press this key anywhere (Esc closes the panel) to open/close it.");
 
+  // --- Info ---
+  const GITHUB_URL = "https://github.com/joshueke/MG-SeedDeleterMod";
+  const versionLabel = setStyles(document.createElement("div"), {
+    fontSize: "12px", fontWeight: "600", opacity: "0.85",
+    cursor: "pointer", textDecoration: "underline",
+  });
+  versionLabel.textContent = `v${__MG_VERSION__}`;
+  versionLabel.title = "Open project on GitHub";
+  versionLabel.onclick = () => window.open(GITHUB_URL, "_blank", "noopener,noreferrer");
+  const versionRow = createRow("Version", versionLabel, "Current version of the Seed Deleter userscript. Click to open the GitHub repo.");
+
   panel.append(
     header,
     createSectionTitle("Selection"), summaryRow, selectionActionsRow,
     createSectionTitle("Deletion"), runControlsRow, progressRow,
     createSectionTitle("Settings"), modeRow, hotkeyRow,
+    createSectionTitle("Info"), versionRow,
   );
   makeDraggable(panel, header, PANEL_POSITION_KEY);
 
