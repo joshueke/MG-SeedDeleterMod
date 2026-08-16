@@ -6,6 +6,7 @@ import { createRow, createVerticalRow, createSectionTitle } from "./panelRows";
 import { createHotkeyPicker } from "./hotkey";
 import type { ToggleMode } from "./toggleButton";
 import { checkForUpdates, onVersionCheck, REPO_URL, UPDATE_SCRIPT_URL, type VersionCheckResult } from "../../services/versionCheck";
+import { pageWindow } from "../../utils/page-context";
 
 const PANEL_ID = "qws-seeddeleter-panel";
 const PANEL_POSITION_KEY = "mgSeedDeleter.panelPosition.v1";
@@ -134,7 +135,7 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
 
   // --- Info ---
   const versionInfo = setStyles(document.createElement("div"), {
-    display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", justifyContent: "flex-end",
+    display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
   });
   const versionBadge = setStyles(document.createElement("div"), {
     fontSize: "11px", fontWeight: "700", padding: "3px 8px", borderRadius: "999px",
@@ -142,7 +143,15 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
   });
   versionBadge.textContent = `v${__MG_VERSION__}`;
   versionBadge.title = "Click to check for updates now";
-  versionBadge.onclick = () => { void checkForUpdates(__MG_VERSION__); };
+
+  let hasUpdate = false;
+  versionBadge.onclick = () => {
+    if (hasUpdate) {
+      pageWindow.open(UPDATE_SCRIPT_URL, "_blank", "noopener,noreferrer");
+      return;
+    }
+    void checkForUpdates(__MG_VERSION__);
+  };
 
   const githubLink = document.createElement("a");
   githubLink.href = REPO_URL;
@@ -158,9 +167,8 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
 
   const renderVersionStatus = (result: VersionCheckResult | null) => {
     const current = result?.current ?? __MG_VERSION__;
-    const hasUpdate = result?.status === "update-available" || result?.status === "update-required";
-    githubLink.href = hasUpdate ? UPDATE_SCRIPT_URL : REPO_URL;
-    githubLink.textContent = hasUpdate ? "Update →" : "GitHub";
+    hasUpdate = result?.status === "update-available" || result?.status === "update-required";
+    versionBadge.title = hasUpdate ? "Click to download the update" : "Click to check for updates now";
 
     if (!result || result.status === "checking") {
       versionBadge.textContent = `v${current} · Checking…`;

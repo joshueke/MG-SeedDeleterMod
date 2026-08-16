@@ -2,7 +2,7 @@
 // @name         MG Seed Deleter
 // @author       Joshueke
 // @namespace    MC-SeedDeleterMod
-// @version      1.0.1
+// @version      1.0.2
 // @description  Bulk seed deleter for Magic Garden with a draggable panel, multi-species selection, and pause/resume/stop with live progress and ETA, extracted from Arie's Mod
 // @match        https://1227719606223765687.discordsays.com/*
 // @match        https://magiccircle.gg/r/*
@@ -4978,10 +4978,9 @@
     const hotkeyRow = createRow("Open panel shortcut", hotkeyPicker, "Press this key anywhere (Esc closes the panel) to open/close it.");
     const versionInfo = setStyles(document.createElement("div"), {
       display: "flex",
+      flexDirection: "column",
       alignItems: "center",
-      gap: "6px",
-      flexWrap: "wrap",
-      justifyContent: "flex-end"
+      gap: "4px"
     });
     const versionBadge = setStyles(document.createElement("div"), {
       fontSize: "11px",
@@ -4993,10 +4992,15 @@
       color: "#9aa7b4",
       cursor: "pointer"
     });
-    versionBadge.textContent = `v${"1.0.1"}`;
+    versionBadge.textContent = `v${"1.0.2"}`;
     versionBadge.title = "Click to check for updates now";
+    let hasUpdate = false;
     versionBadge.onclick = () => {
-      void checkForUpdates("1.0.1");
+      if (hasUpdate) {
+        pageWindow.open(UPDATE_SCRIPT_URL, "_blank", "noopener,noreferrer");
+        return;
+      }
+      void checkForUpdates("1.0.2");
     };
     const githubLink = document.createElement("a");
     githubLink.href = REPO_URL;
@@ -5013,10 +5017,9 @@
     versionInfo.append(versionBadge, githubLink);
     const versionRow = createRow("Version", versionInfo, "Auto-checks for updates hourly. Click the version badge to refresh now.");
     const renderVersionStatus = (result) => {
-      const current = result?.current ?? "1.0.1";
-      const hasUpdate = result?.status === "update-available" || result?.status === "update-required";
-      githubLink.href = hasUpdate ? UPDATE_SCRIPT_URL : REPO_URL;
-      githubLink.textContent = hasUpdate ? "Update \u2192" : "GitHub";
+      const current = result?.current ?? "1.0.2";
+      hasUpdate = result?.status === "update-available" || result?.status === "update-required";
+      versionBadge.title = hasUpdate ? "Click to download the update" : "Click to check for updates now";
       if (!result || result.status === "checking") {
         versionBadge.textContent = `v${current} \xB7 Checking\u2026`;
         setStyles(versionBadge, { color: "#9aa7b4", borderColor: "#2b3340", background: "#141b22" });
@@ -5323,7 +5326,7 @@
     } else {
       mountNow();
     }
-    startPeriodicVersionCheck("1.0.1");
+    startPeriodicVersionCheck("1.0.2");
   }
 
   // src/main.ts
