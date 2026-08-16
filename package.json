@@ -1,6 +1,7 @@
 {
   "name": "mg-seed-deleter",
   "version": "1.0.0",
+  "author": "Joshueke",
   "private": true,
   "type": "module",
   "scripts": {
