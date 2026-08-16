@@ -5,7 +5,7 @@ import { makeDraggable, restoreSavedPosition } from "./dragPosition";
 import { createRow, createVerticalRow, createSectionTitle } from "./panelRows";
 import { createHotkeyPicker } from "./hotkey";
 import type { ToggleMode } from "./toggleButton";
-import { checkForUpdates, onVersionCheck, type VersionCheckResult } from "../../services/versionCheck";
+import { checkForUpdates, onVersionCheck, REPO_URL, UPDATE_SCRIPT_URL, type VersionCheckResult } from "../../services/versionCheck";
 
 const PANEL_ID = "qws-seeddeleter-panel";
 const PANEL_POSITION_KEY = "mgSeedDeleter.panelPosition.v1";
@@ -133,7 +133,6 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
   const hotkeyRow = createRow("Open panel shortcut", hotkeyPicker, "Press this key anywhere (Esc closes the panel) to open/close it.");
 
   // --- Info ---
-  const GITHUB_URL = "https://github.com/joshueke/MG-SeedDeleterMod";
   const versionInfo = setStyles(document.createElement("div"), {
     display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", justifyContent: "flex-end",
   });
@@ -146,7 +145,7 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
   versionBadge.onclick = () => { void checkForUpdates(__MG_VERSION__); };
 
   const githubLink = document.createElement("a");
-  githubLink.href = GITHUB_URL;
+  githubLink.href = REPO_URL;
   githubLink.target = "_blank";
   githubLink.rel = "noopener noreferrer";
   githubLink.textContent = "GitHub";
@@ -159,6 +158,10 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
 
   const renderVersionStatus = (result: VersionCheckResult | null) => {
     const current = result?.current ?? __MG_VERSION__;
+    const hasUpdate = result?.status === "update-available" || result?.status === "update-required";
+    githubLink.href = hasUpdate ? UPDATE_SCRIPT_URL : REPO_URL;
+    githubLink.textContent = hasUpdate ? "Update →" : "GitHub";
+
     if (!result || result.status === "checking") {
       versionBadge.textContent = `v${current} · Checking…`;
       setStyles(versionBadge, { color: "#9aa7b4", borderColor: "#2b3340", background: "#141b22" });

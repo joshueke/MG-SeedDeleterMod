@@ -3948,6 +3948,8 @@
   var PACKAGE_JSON_URL = "https://raw.githubusercontent.com/joshueke/MG-SeedDeleterMod/refs/heads/main/package.json";
   var CHECK_TIMEOUT_MS = 8e3;
   var CHECK_INTERVAL_MS = 60 * 60 * 1e3;
+  var REPO_URL = "https://github.com/joshueke/MG-SeedDeleterMod";
+  var UPDATE_SCRIPT_URL = "https://raw.githubusercontent.com/joshueke/MG-SeedDeleterMod/refs/heads/main/dist/seed-deleter.min.user.js";
   function parseSemver(v) {
     const m = /^(\d+)\.(\d+)\.(\d+)/.exec((v || "").trim());
     return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
@@ -4973,7 +4975,6 @@
     const modeRow = createRow("Lock \u{1F331} button", modeCheckbox, "When unchecked, you can drag the button anywhere on screen.");
     const hotkeyPicker = createHotkeyPicker();
     const hotkeyRow = createRow("Open panel shortcut", hotkeyPicker, "Press this key anywhere (Esc closes the panel) to open/close it.");
-    const GITHUB_URL2 = "https://github.com/joshueke/MG-SeedDeleterMod";
     const versionInfo = setStyles(document.createElement("div"), {
       display: "flex",
       alignItems: "center",
@@ -4997,7 +4998,7 @@
       void checkForUpdates("1.0.0");
     };
     const githubLink = document.createElement("a");
-    githubLink.href = GITHUB_URL2;
+    githubLink.href = REPO_URL;
     githubLink.target = "_blank";
     githubLink.rel = "noopener noreferrer";
     githubLink.textContent = "GitHub";
@@ -5012,6 +5013,9 @@
     const versionRow = createRow("Version", versionInfo, "Auto-checks for updates hourly. Click the version badge to refresh now.");
     const renderVersionStatus = (result) => {
       const current = result?.current ?? "1.0.0";
+      const hasUpdate = result?.status === "update-available" || result?.status === "update-required";
+      githubLink.href = hasUpdate ? UPDATE_SCRIPT_URL : REPO_URL;
+      githubLink.textContent = hasUpdate ? "Update \u2192" : "GitHub";
       if (!result || result.status === "checking") {
         versionBadge.textContent = `v${current} \xB7 Checking\u2026`;
         setStyles(versionBadge, { color: "#9aa7b4", borderColor: "#2b3340", background: "#141b22" });
@@ -5244,7 +5248,6 @@
 
   // src/ui/panel/index.ts
   var GATE_ID = "qws-seeddeleter-updategate";
-  var GITHUB_URL = "https://github.com/joshueke/MG-SeedDeleterMod";
   function buildUpdateGateBanner(result) {
     const banner = setStyles(document.createElement("div"), {
       position: "fixed",
@@ -5270,7 +5273,7 @@
     text.textContent = `\u26A0\uFE0F Seed Deleter v${result.current} is disabled \u2014 major update to v${result.latest} required.`;
     setStyles(text, { lineHeight: "1.4" });
     const link = document.createElement("a");
-    link.href = GITHUB_URL;
+    link.href = UPDATE_SCRIPT_URL;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     link.textContent = "Update \u2192";

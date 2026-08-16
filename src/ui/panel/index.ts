@@ -2,13 +2,12 @@ import { createToggleButton, TOGGLE_ID } from "./toggleButton";
 import { createPanel } from "./seedPanel";
 import { installOpenHotkeyListener } from "./hotkey";
 import { isSelectionOverlayOpen } from "../../services/seedDeleter";
-import { onVersionCheck, startPeriodicVersionCheck, type VersionCheckResult } from "../../services/versionCheck";
+import { onVersionCheck, startPeriodicVersionCheck, UPDATE_SCRIPT_URL, type VersionCheckResult } from "../../services/versionCheck";
 import { setStyles } from "./dom";
 
 declare const __MG_VERSION__: string;
 
 const GATE_ID = "qws-seeddeleter-updategate";
-const GITHUB_URL = "https://github.com/joshueke/MG-SeedDeleterMod";
 
 function buildUpdateGateBanner(result: VersionCheckResult): HTMLDivElement {
   const banner = setStyles(document.createElement("div"), {
@@ -37,7 +36,7 @@ function buildUpdateGateBanner(result: VersionCheckResult): HTMLDivElement {
   setStyles(text, { lineHeight: "1.4" });
 
   const link = document.createElement("a");
-  link.href = GITHUB_URL;
+  link.href = UPDATE_SCRIPT_URL;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.textContent = "Update →";
