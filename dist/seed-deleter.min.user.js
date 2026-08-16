@@ -2,7 +2,7 @@
 // @name         MG Seed Deleter
 // @author       Joshueke
 // @namespace    MC-SeedDeleterMod
-// @version      0.0.81
+// @version      0.0.9
 // @description  Bulk seed deleter for Magic Garden with a draggable panel, multi-species selection, and pause/resume/stop with live progress and ETA, extracted from Arie's Mod
 // @match        https://1227719606223765687.discordsays.com/*
 // @match        https://magiccircle.gg/r/*
@@ -4057,11 +4057,21 @@
     }
     const nameToSpecies = buildDisplayNameToSpeciesFromCatalog();
     const speciesStock = await buildSpeciesStockFromInventory();
+    for (const species of speciesStock.keys()) {
+      const dispName = seedDisplayNameFromSpecies(species);
+      const arr = nameToSpecies.get(dispName) ?? [];
+      if (!arr.includes(species)) arr.push(species);
+      nameToSpecies.set(dispName, arr);
+    }
+    console.debug("[SeedDeleter] selection", selection);
+    console.debug("[SeedDeleter] speciesStock", Object.fromEntries(speciesStock));
     const allocatedBySpecies = /* @__PURE__ */ new Map();
     let requestedTotal = 0, cappedTotal = 0;
     for (const req of selection) {
       requestedTotal += req.qty;
+      const candidates = nameToSpecies.get(req.name) ?? [];
       const chunks = allocateForRequestedName(req, nameToSpecies, speciesStock);
+      console.debug("[SeedDeleter] allocate", { name: req.name, qty: req.qty, candidates, chunks });
       const okForThis = chunks.reduce((a, c) => a + c.qty, 0);
       cappedTotal += okForThis;
       for (const c of chunks) {
@@ -4890,7 +4900,7 @@
       cursor: "pointer",
       textDecoration: "underline"
     });
-    versionLabel.textContent = `v${"0.0.81"}`;
+    versionLabel.textContent = `v${"0.0.9"}`;
     versionLabel.title = "Open project on GitHub";
     versionLabel.onclick = () => window.open(GITHUB_URL, "_blank", "noopener,noreferrer");
     const versionRow = createRow("Version", versionLabel, "Current version of the Seed Deleter userscript. Click to open the GitHub repo.");

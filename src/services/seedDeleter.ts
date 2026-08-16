@@ -153,6 +153,16 @@ export async function deleteSelectedSeeds(opts: DeleteOpts = {}) {
   const nameToSpecies = buildDisplayNameToSpeciesFromCatalog();
   const speciesStock = await buildSpeciesStockFromInventory();
 
+  // Some species held in the live inventory (e.g. rarer/event-only seeds) may not
+  // exist in the hardcoded catalog yet. Fall back to their held species directly so
+  // deletion still works instead of silently reporting "not in inventory".
+  for (const species of speciesStock.keys()) {
+    const dispName = seedDisplayNameFromSpecies(species);
+    const arr = nameToSpecies.get(dispName) ?? [];
+    if (!arr.includes(species)) arr.push(species);
+    nameToSpecies.set(dispName, arr);
+  }
+
   const allocatedBySpecies = new Map<string, number>();
   let requestedTotal = 0, cappedTotal = 0;
   for (const req of selection) {
