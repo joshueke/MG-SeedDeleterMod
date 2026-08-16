@@ -14,14 +14,13 @@ Under the hood it hooks the page's `WebSocket` to find the game's live connectio
 - Seed selection overlay (opened via "Select seeds") to pick species and quantities from the current inventory, opens centered on screen.
 - Pause / resume / stop controls and a live progress + ETA readout while a bulk deletion is running.
 
-## Supported sites
+## Supported in
 
-The userscript only runs on pages matching (see `meta.userscript.js`):
+- ✅ Magic Garden (web)
+- ✅ Discord (web)
+- ❌ Discord (app) — desktop/mobile clients don't support userscript managers
 
-- `https://1227719606223765687.discordsays.com/*`
-- `https://magiccircle.gg/r/*`
-- `https://magicgarden.gg/r/*`
-- `https://starweaver.org/r/*`
+(see the exact matched URLs in `meta.userscript.js`)
 
 ## Installing the userscript
 
