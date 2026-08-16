@@ -42,6 +42,7 @@ export function installOpenHotkeyListener(onTrigger: () => void): () => void {
   const handler = (e: KeyboardEvent) => {
     if (isEditableTarget(document.activeElement)) return;
     if (e.key !== loadOpenHotkey()) return;
+    if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
     e.preventDefault();
     onTrigger();
   };

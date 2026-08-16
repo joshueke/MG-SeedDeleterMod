@@ -2,7 +2,7 @@
 // @name         MG Seed Deleter
 // @author       Joshueke
 // @namespace    MC-SeedDeleterMod
-// @version      1.0.0
+// @version      1.0.1
 // @description  Bulk seed deleter for Magic Garden with a draggable panel, multi-species selection, and pause/resume/stop with live progress and ETA, extracted from Arie's Mod
 // @match        https://1227719606223765687.discordsays.com/*
 // @match        https://magiccircle.gg/r/*
@@ -4827,6 +4827,7 @@
     const handler = (e) => {
       if (isEditableTarget(document.activeElement)) return;
       if (e.key !== loadOpenHotkey()) return;
+      if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
       e.preventDefault();
       onTrigger();
     };
@@ -4992,10 +4993,10 @@
       color: "#9aa7b4",
       cursor: "pointer"
     });
-    versionBadge.textContent = `v${"1.0.0"}`;
+    versionBadge.textContent = `v${"1.0.1"}`;
     versionBadge.title = "Click to check for updates now";
     versionBadge.onclick = () => {
-      void checkForUpdates("1.0.0");
+      void checkForUpdates("1.0.1");
     };
     const githubLink = document.createElement("a");
     githubLink.href = REPO_URL;
@@ -5012,7 +5013,7 @@
     versionInfo.append(versionBadge, githubLink);
     const versionRow = createRow("Version", versionInfo, "Auto-checks for updates hourly. Click the version badge to refresh now.");
     const renderVersionStatus = (result) => {
-      const current = result?.current ?? "1.0.0";
+      const current = result?.current ?? "1.0.1";
       const hasUpdate = result?.status === "update-available" || result?.status === "update-required";
       githubLink.href = hasUpdate ? UPDATE_SCRIPT_URL : REPO_URL;
       githubLink.textContent = hasUpdate ? "Update \u2192" : "GitHub";
@@ -5322,7 +5323,7 @@
     } else {
       mountNow();
     }
-    startPeriodicVersionCheck("1.0.0");
+    startPeriodicVersionCheck("1.0.1");
   }
 
   // src/main.ts
