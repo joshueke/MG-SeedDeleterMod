@@ -5,6 +5,7 @@ import { makeDraggable, restoreSavedPosition } from "./dragPosition";
 import { createRow, createVerticalRow, createSectionTitle } from "./panelRows";
 import { createHotkeyPicker } from "./hotkey";
 import type { ToggleMode } from "./toggleButton";
+import { checkForUpdates, onVersionCheck, type VersionCheckResult } from "../../services/versionCheck";
 
 const PANEL_ID = "qws-seeddeleter-panel";
 const PANEL_POSITION_KEY = "mgSeedDeleter.panelPosition.v1";
@@ -133,22 +134,90 @@ export function createPanel(toggleMode: ToggleModeControl): { panel: HTMLDivElem
 
   // --- Info ---
   const GITHUB_URL = "https://github.com/joshueke/MG-SeedDeleterMod";
-  const versionLabel = setStyles(document.createElement("div"), {
-    fontSize: "12px", fontWeight: "600", opacity: "0.85",
-    cursor: "pointer", textDecoration: "underline",
+  const versionInfo = setStyles(document.createElement("div"), {
+    display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", justifyContent: "flex-end",
   });
-  versionLabel.textContent = `v${__MG_VERSION__}`;
-  versionLabel.title = "Open project on GitHub";
-  versionLabel.onclick = () => window.open(GITHUB_URL, "_blank", "noopener,noreferrer");
-  const versionRow = createRow("Version", versionLabel, "Current version of the Seed Deleter userscript. Click to open the GitHub repo.");
+  const versionBadge = setStyles(document.createElement("div"), {
+    fontSize: "11px", fontWeight: "700", padding: "3px 8px", borderRadius: "999px",
+    border: "1px solid #2b3340", background: "#141b22", color: "#9aa7b4", cursor: "pointer",
+  });
+  versionBadge.textContent = `v${__MG_VERSION__}`;
+  versionBadge.title = "Click to check for updates now";
+  versionBadge.onclick = () => { void checkForUpdates(__MG_VERSION__); };
 
-  panel.append(
-    header,
+  const githubLink = document.createElement("a");
+  githubLink.href = GITHUB_URL;
+  githubLink.target = "_blank";
+  githubLink.rel = "noopener noreferrer";
+  githubLink.textContent = "GitHub";
+  setStyles(githubLink, {
+    fontSize: "11px", fontWeight: "600", opacity: "0.7", textDecoration: "underline", color: "inherit",
+  } as any);
+
+  versionInfo.append(versionBadge, githubLink);
+  const versionRow = createRow("Version", versionInfo, "Auto-checks for updates hourly. Click the version badge to refresh now.");
+
+  const renderVersionStatus = (result: VersionCheckResult | null) => {
+    const current = result?.current ?? __MG_VERSION__;
+    if (!result || result.status === "checking") {
+      versionBadge.textContent = `v${current} · Checking…`;
+      setStyles(versionBadge, { color: "#9aa7b4", borderColor: "#2b3340", background: "#141b22" });
+      return;
+    }
+    if (result.status === "up-to-date") {
+      versionBadge.textContent = `v${current} · Up to date`;
+      setStyles(versionBadge, { color: "#3fb950", borderColor: "#2ea043", background: "#0f2417" });
+    } else if (result.status === "update-available") {
+      versionBadge.textContent = `v${current} · Update to v${result.latest}`;
+      setStyles(versionBadge, { color: "#d29922", borderColor: "#9e6a03", background: "#2b2110" });
+    } else if (result.status === "update-required") {
+      versionBadge.textContent = `v${current} · Update required (v${result.latest})`;
+      setStyles(versionBadge, { color: "#f85149", borderColor: "#da3633", background: "#2d1214" });
+    } else {
+      versionBadge.textContent = `v${current} · Check failed`;
+      setStyles(versionBadge, { color: "#9aa7b4", borderColor: "#2b3340", background: "#141b22" });
+    }
+  };
+  onVersionCheck(renderVersionStatus);
+
+  // --- Tabs ---
+  const tabBar = setStyles(document.createElement("div"), {
+    display: "flex", gap: "4px", padding: "3px", borderRadius: "8px",
+    background: "#0f1318", border: "1px solid #2b3340",
+  });
+  const btnTabMain = createButton("Main", { flex: "1" });
+  const btnTabSettings = createButton("Settings", { flex: "1" });
+  tabBar.append(btnTabMain, btnTabSettings);
+
+  const mainTabContent = setStyles(document.createElement("div"), {
+    display: "flex", flexDirection: "column", gap: "8px",
+  });
+  mainTabContent.append(
     createSectionTitle("Selection"), summaryRow, selectionActionsRow,
     createSectionTitle("Deletion"), runControlsRow, progressRow,
+  );
+
+  const settingsTabContent = setStyles(document.createElement("div"), {
+    display: "none", flexDirection: "column", gap: "8px",
+  });
+  settingsTabContent.append(
     createSectionTitle("Settings"), modeRow, hotkeyRow,
     createSectionTitle("Info"), versionRow,
   );
+
+  type TabKey = "main" | "settings";
+  const setActiveTab = (tab: TabKey) => {
+    const isMain = tab === "main";
+    mainTabContent.style.display = isMain ? "flex" : "none";
+    settingsTabContent.style.display = isMain ? "none" : "flex";
+    setStyles(btnTabMain, { background: isMain ? "#1f6feb" : "transparent", borderColor: isMain ? "#1f6feb" : "#4446" });
+    setStyles(btnTabSettings, { background: !isMain ? "#1f6feb" : "transparent", borderColor: !isMain ? "#1f6feb" : "#4446" });
+  };
+  btnTabMain.onclick = () => setActiveTab("main");
+  btnTabSettings.onclick = () => setActiveTab("settings");
+  setActiveTab("main");
+
+  panel.append(header, tabBar, mainTabContent, settingsTabContent);
   makeDraggable(panel, header, PANEL_POSITION_KEY);
 
   const setVisible = (v: boolean) => {

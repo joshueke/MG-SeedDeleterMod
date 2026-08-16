@@ -2,7 +2,7 @@
 // @name         MG Seed Deleter
 // @author       Joshueke
 // @namespace    MC-SeedDeleterMod
-// @version      0.0.9
+// @version      1.0.0
 // @description  Bulk seed deleter for Magic Garden with a draggable panel, multi-species selection, and pause/resume/stop with live progress and ETA, extracted from Arie's Mod
 // @match        https://1227719606223765687.discordsays.com/*
 // @match        https://magiccircle.gg/r/*
@@ -3944,6 +3944,83 @@
     return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
 
+  // src/services/versionCheck.ts
+  var PACKAGE_JSON_URL = "https://raw.githubusercontent.com/joshueke/MG-SeedDeleterMod/refs/heads/main/package.json";
+  var CHECK_TIMEOUT_MS = 8e3;
+  var CHECK_INTERVAL_MS = 60 * 60 * 1e3;
+  function parseSemver(v) {
+    const m = /^(\d+)\.(\d+)\.(\d+)/.exec((v || "").trim());
+    return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+  }
+  var lastResult = null;
+  var checking = false;
+  var listeners = /* @__PURE__ */ new Set();
+  function emit(result) {
+    lastResult = result;
+    for (const cb of listeners) {
+      try {
+        cb(result);
+      } catch {
+      }
+    }
+  }
+  function onVersionCheck(cb) {
+    listeners.add(cb);
+    if (lastResult) cb(lastResult);
+    return () => listeners.delete(cb);
+  }
+  function isForceUpdateRequired() {
+    return lastResult?.status === "update-required";
+  }
+  async function checkForUpdates(currentVersion) {
+    if (checking) return lastResult ?? { status: "checking", current: currentVersion, latest: null };
+    checking = true;
+    emit({ status: "checking", current: currentVersion, latest: null });
+    try {
+      const controller = new pageWindow.AbortController();
+      const timer = setTimeout(() => {
+        try {
+          controller.abort();
+        } catch {
+        }
+      }, CHECK_TIMEOUT_MS);
+      let res;
+      try {
+        res = await pageWindow.fetch(PACKAGE_JSON_URL, { cache: "no-store", signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const latest = typeof data?.version === "string" ? data.version.trim() : null;
+      if (!latest) throw new Error("Missing version field in remote package.json");
+      const cur = parseSemver(currentVersion);
+      const rem = parseSemver(latest);
+      let status;
+      if (latest === currentVersion) status = "up-to-date";
+      else if (cur && rem && rem[0] > cur[0]) status = "update-required";
+      else status = "update-available";
+      const result = { status, current: currentVersion, latest };
+      emit(result);
+      return result;
+    } catch {
+      const result = { status: "unknown", current: currentVersion, latest: null };
+      emit(result);
+      return result;
+    } finally {
+      checking = false;
+    }
+  }
+  var periodicStarted = false;
+  function startPeriodicVersionCheck(currentVersion) {
+    if (periodicStarted) return;
+    periodicStarted = true;
+    void checkForUpdates(currentVersion);
+    setInterval(() => {
+      void checkForUpdates(currentVersion);
+    }, CHECK_INTERVAL_MS);
+  }
+
   // src/services/seedDeleter.ts
   async function wish(itemId) {
     try {
@@ -4045,6 +4122,10 @@
     }
   }
   async function deleteSelectedSeeds(opts = {}) {
+    if (isForceUpdateRequired()) {
+      await toastSimple("Seed deleter", "A major update is required before this mod can run. Please update from GitHub.", "error");
+      return;
+    }
     if (_seedDeleteBusy) {
       await toastSimple("Seed deleter", "Deletion already in progress.", "info");
       return;
@@ -4063,15 +4144,11 @@
       if (!arr.includes(species)) arr.push(species);
       nameToSpecies.set(dispName, arr);
     }
-    console.debug("[SeedDeleter] selection", selection);
-    console.debug("[SeedDeleter] speciesStock", Object.fromEntries(speciesStock));
     const allocatedBySpecies = /* @__PURE__ */ new Map();
     let requestedTotal = 0, cappedTotal = 0;
     for (const req of selection) {
       requestedTotal += req.qty;
-      const candidates = nameToSpecies.get(req.name) ?? [];
       const chunks = allocateForRequestedName(req, nameToSpecies, speciesStock);
-      console.debug("[SeedDeleter] allocate", { name: req.name, qty: req.qty, candidates, chunks });
       const okForThis = chunks.reduce((a, c) => a + c.qty, 0);
       cappedTotal += okForThis;
       for (const c of chunks) {
@@ -4578,6 +4655,10 @@
     }
   }
   async function openSeedSelectorFlow(setWindowVisible) {
+    if (isForceUpdateRequired()) {
+      await toastSimple("Seed deleter", "A major update is required before this mod can run. Please update from GitHub.", "error");
+      return;
+    }
     try {
       setWindowVisible?.(false);
       seedSourceCache = await getMySeedInventory();
@@ -4892,32 +4973,112 @@
     const modeRow = createRow("Lock \u{1F331} button", modeCheckbox, "When unchecked, you can drag the button anywhere on screen.");
     const hotkeyPicker = createHotkeyPicker();
     const hotkeyRow = createRow("Open panel shortcut", hotkeyPicker, "Press this key anywhere (Esc closes the panel) to open/close it.");
-    const GITHUB_URL = "https://github.com/joshueke/MG-SeedDeleterMod";
-    const versionLabel = setStyles(document.createElement("div"), {
-      fontSize: "12px",
-      fontWeight: "600",
-      opacity: "0.85",
-      cursor: "pointer",
-      textDecoration: "underline"
+    const GITHUB_URL2 = "https://github.com/joshueke/MG-SeedDeleterMod";
+    const versionInfo = setStyles(document.createElement("div"), {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      flexWrap: "wrap",
+      justifyContent: "flex-end"
     });
-    versionLabel.textContent = `v${"0.0.9"}`;
-    versionLabel.title = "Open project on GitHub";
-    versionLabel.onclick = () => window.open(GITHUB_URL, "_blank", "noopener,noreferrer");
-    const versionRow = createRow("Version", versionLabel, "Current version of the Seed Deleter userscript. Click to open the GitHub repo.");
-    panel.append(
-      header,
+    const versionBadge = setStyles(document.createElement("div"), {
+      fontSize: "11px",
+      fontWeight: "700",
+      padding: "3px 8px",
+      borderRadius: "999px",
+      border: "1px solid #2b3340",
+      background: "#141b22",
+      color: "#9aa7b4",
+      cursor: "pointer"
+    });
+    versionBadge.textContent = `v${"1.0.0"}`;
+    versionBadge.title = "Click to check for updates now";
+    versionBadge.onclick = () => {
+      void checkForUpdates("1.0.0");
+    };
+    const githubLink = document.createElement("a");
+    githubLink.href = GITHUB_URL2;
+    githubLink.target = "_blank";
+    githubLink.rel = "noopener noreferrer";
+    githubLink.textContent = "GitHub";
+    setStyles(githubLink, {
+      fontSize: "11px",
+      fontWeight: "600",
+      opacity: "0.7",
+      textDecoration: "underline",
+      color: "inherit"
+    });
+    versionInfo.append(versionBadge, githubLink);
+    const versionRow = createRow("Version", versionInfo, "Auto-checks for updates hourly. Click the version badge to refresh now.");
+    const renderVersionStatus = (result) => {
+      const current = result?.current ?? "1.0.0";
+      if (!result || result.status === "checking") {
+        versionBadge.textContent = `v${current} \xB7 Checking\u2026`;
+        setStyles(versionBadge, { color: "#9aa7b4", borderColor: "#2b3340", background: "#141b22" });
+        return;
+      }
+      if (result.status === "up-to-date") {
+        versionBadge.textContent = `v${current} \xB7 Up to date`;
+        setStyles(versionBadge, { color: "#3fb950", borderColor: "#2ea043", background: "#0f2417" });
+      } else if (result.status === "update-available") {
+        versionBadge.textContent = `v${current} \xB7 Update to v${result.latest}`;
+        setStyles(versionBadge, { color: "#d29922", borderColor: "#9e6a03", background: "#2b2110" });
+      } else if (result.status === "update-required") {
+        versionBadge.textContent = `v${current} \xB7 Update required (v${result.latest})`;
+        setStyles(versionBadge, { color: "#f85149", borderColor: "#da3633", background: "#2d1214" });
+      } else {
+        versionBadge.textContent = `v${current} \xB7 Check failed`;
+        setStyles(versionBadge, { color: "#9aa7b4", borderColor: "#2b3340", background: "#141b22" });
+      }
+    };
+    onVersionCheck(renderVersionStatus);
+    const tabBar = setStyles(document.createElement("div"), {
+      display: "flex",
+      gap: "4px",
+      padding: "3px",
+      borderRadius: "8px",
+      background: "#0f1318",
+      border: "1px solid #2b3340"
+    });
+    const btnTabMain = createButton("Main", { flex: "1" });
+    const btnTabSettings = createButton("Settings", { flex: "1" });
+    tabBar.append(btnTabMain, btnTabSettings);
+    const mainTabContent = setStyles(document.createElement("div"), {
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px"
+    });
+    mainTabContent.append(
       createSectionTitle("Selection"),
       summaryRow,
       selectionActionsRow,
       createSectionTitle("Deletion"),
       runControlsRow,
-      progressRow,
+      progressRow
+    );
+    const settingsTabContent = setStyles(document.createElement("div"), {
+      display: "none",
+      flexDirection: "column",
+      gap: "8px"
+    });
+    settingsTabContent.append(
       createSectionTitle("Settings"),
       modeRow,
       hotkeyRow,
       createSectionTitle("Info"),
       versionRow
     );
+    const setActiveTab = (tab) => {
+      const isMain = tab === "main";
+      mainTabContent.style.display = isMain ? "flex" : "none";
+      settingsTabContent.style.display = isMain ? "none" : "flex";
+      setStyles(btnTabMain, { background: isMain ? "#1f6feb" : "transparent", borderColor: isMain ? "#1f6feb" : "#4446" });
+      setStyles(btnTabSettings, { background: !isMain ? "#1f6feb" : "transparent", borderColor: !isMain ? "#1f6feb" : "#4446" });
+    };
+    btnTabMain.onclick = () => setActiveTab("main");
+    btnTabSettings.onclick = () => setActiveTab("settings");
+    setActiveTab("main");
+    panel.append(header, tabBar, mainTabContent, settingsTabContent);
     makeDraggable(panel, header, PANEL_POSITION_KEY);
     const setVisible = (v) => {
       panel.style.display = v ? "flex" : "none";
@@ -5082,19 +5243,75 @@
   }
 
   // src/ui/panel/index.ts
+  var GATE_ID = "qws-seeddeleter-updategate";
+  var GITHUB_URL = "https://github.com/joshueke/MG-SeedDeleterMod";
+  function buildUpdateGateBanner(result) {
+    const banner = setStyles(document.createElement("div"), {
+      position: "fixed",
+      left: "50%",
+      bottom: "16px",
+      transform: "translateX(-50%)",
+      zIndex: "999999",
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      padding: "10px 14px",
+      border: "1px solid #da3633",
+      borderRadius: "10px",
+      background: "rgba(22,27,34,0.97)",
+      boxShadow: "0 10px 30px rgba(0,0,0,0.45)",
+      color: "#E7EEF7",
+      fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial",
+      fontSize: "12px",
+      maxWidth: "min(92vw, 460px)"
+    });
+    banner.id = GATE_ID;
+    const text = document.createElement("div");
+    text.textContent = `\u26A0\uFE0F Seed Deleter v${result.current} is disabled \u2014 major update to v${result.latest} required.`;
+    setStyles(text, { lineHeight: "1.4" });
+    const link = document.createElement("a");
+    link.href = GITHUB_URL;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Update \u2192";
+    setStyles(link, {
+      flexShrink: "0",
+      fontWeight: "700",
+      color: "#58a6ff",
+      textDecoration: "underline",
+      whiteSpace: "nowrap"
+    });
+    banner.append(text, link);
+    return banner;
+  }
   function mountNow() {
     if (document.getElementById(TOGGLE_ID)) return;
     let openToggle = () => {
     };
     const toggle = createToggleButton(() => openToggle());
     const { panel, setVisible } = createPanel({ setMode: toggle.setMode, getMode: toggle.getMode });
-    openToggle = () => setVisible(panel.style.display === "none");
+    let forceUpdateActive = false;
+    openToggle = () => {
+      if (forceUpdateActive) return;
+      setVisible(panel.style.display === "none");
+    };
     installOpenHotkeyListener(() => {
       if (isSelectionOverlayOpen()) return;
       openToggle();
     });
     document.body.appendChild(toggle.btn);
     document.body.appendChild(panel);
+    onVersionCheck((result) => {
+      forceUpdateActive = result.status === "update-required";
+      toggle.btn.style.display = forceUpdateActive ? "none" : "flex";
+      if (forceUpdateActive) setVisible(false);
+      const existingBanner = document.getElementById(GATE_ID);
+      if (forceUpdateActive) {
+        if (!existingBanner) document.body.appendChild(buildUpdateGateBanner(result));
+      } else {
+        existingBanner?.remove();
+      }
+    });
   }
   function mountSeedDeleterUI() {
     if (document.readyState === "loading") {
@@ -5102,6 +5319,7 @@
     } else {
       mountNow();
     }
+    startPeriodicVersionCheck("1.0.0");
   }
 
   // src/main.ts

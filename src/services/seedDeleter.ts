@@ -4,6 +4,7 @@ import { sendToGame } from "../core/sendToGame";
 import { fakeInventoryShow, isInventoryPanelOpen, waitInventoryPanelClosed, fakeInventoryHide } from "./fakeModal";
 import { toastSimple } from "../ui/toast";
 import { formatNum } from "../utils/format";
+import { isForceUpdateRequired } from "./versionCheck";
 
 export type SeedItem = {
   species: string;
@@ -134,6 +135,10 @@ async function waitSeedPause() {
 }
 
 export async function deleteSelectedSeeds(opts: DeleteOpts = {}) {
+  if (isForceUpdateRequired()) {
+    await toastSimple("Seed deleter", "A major update is required before this mod can run. Please update from GitHub.", "error");
+    return;
+  }
   if (_seedDeleteBusy) {
     await toastSimple("Seed deleter", "Deletion already in progress.", "info");
     return;
@@ -706,6 +711,10 @@ async function endSelectedNameListener() {
 }
 
 export async function openSeedSelectorFlow(setWindowVisible?: (v: boolean) => void) {
+  if (isForceUpdateRequired()) {
+    await toastSimple("Seed deleter", "A major update is required before this mod can run. Please update from GitHub.", "error");
+    return;
+  }
   try {
     setWindowVisible?.(false);
 
